@@ -1,0 +1,23 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+
+# ML models and outputs
+model/
+runs/
+checkpoint-*/
+*.onnx
+
+# System & IDE
+.idea/
+.vscode/
+.DS_Store
+*.log

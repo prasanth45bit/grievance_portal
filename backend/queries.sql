@@ -1,0 +1,57 @@
+CREATE DATABASE SmartGrievance;
+
+USE SmartGrievance;
+
+
+CREATE TABLE districts (
+    district_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    district_name VARCHAR(100) NOT NULL,
+    state_name VARCHAR(100) NOT NULL DEFAULT 'Tamil Nadu',
+    status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uk_district_name_state (district_name, state_name)
+);
+
+
+CREATE TABLE citizens (
+    citizen_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    phone VARCHAR(15) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    address VARCHAR(500) NOT NULL,
+    district_id BIGINT UNSIGNED NOT NULL,
+    pincode VARCHAR(10) NOT NULL,
+    profile_image VARCHAR(500) DEFAULT NULL,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    status ENUM('ACTIVE', 'INACTIVE', 'BLOCKED')
+        NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_citizen_district
+        FOREIGN KEY (district_id)
+        REFERENCES districts(district_id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+
+CREATE TABLE departments (
+    department_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    department_name VARCHAR(150) NOT NULL UNIQUE,
+
+    description TEXT DEFAULT NULL,
+
+    status ENUM('ACTIVE', 'INACTIVE')
+        NOT NULL DEFAULT 'ACTIVE',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+);

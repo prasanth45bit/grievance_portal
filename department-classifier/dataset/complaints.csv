@@ -1,0 +1,126 @@
+complaint,department_id,department_name
+There has been no water supply in my area for the last two days.,1,Water Supply
+Street light is not working and it is very dark at night.,2,Electricity
+Garbage has not been collected for three days from the community bin.,3,Sanitation
+Water pipeline is leaking on the main road causing flooding.,1,Water Supply
+Road is damaged due to heavy rain and has deep potholes.,4,Roads
+Drain is blocked and sewage is overflowing on the pavement.,5,Drainage
+The drinking water we receive is muddy and smells bad.,1,Water Supply
+High voltage fluctuation has damaged electrical appliances in our building.,2,Electricity
+People are dumping plastic waste on the street corner.,3,Sanitation
+The concrete road near the bus stand is completely broken.,4,Roads
+Rainwater is not draining because the storm water drain is choked.,5,Drainage
+No power supply since this morning in our block.,2,Electricity
+Trash is piling up near the park and attracting stray dogs.,3,Sanitation
+The road pavement has cracked making it hard to walk.,4,Roads
+Sewage water is leaking from the underground drainage pipe.,5,Drainage
+Water pressure is very low and we cannot fill our tanks.,1,Water Supply
+A live electric wire is hanging dangerously from the post.,2,Electricity
+The sanitary workers have not swept the streets this week.,3,Sanitation
+Potholes on the highway are causing traffic jams and accidents.,4,Roads
+The gutter is overflowing and spreading bad odor.,5,Drainage
+We are facing continuous power outages every evening.,2,Electricity
+Clean drinking water is not being supplied in the slum area.,1,Water Supply
+Accumulated garbage is blocking the footpath.,3,Sanitation
+The asphalt has peeled off from the road surface.,4,Roads
+1  Manhole cover is broken and sewage is spilling out.,5,Drainage
+1	complaint	department_id	department_name
+2	Kindly note that vaccination camp promised last month never happened near Old Town immediately. Please look into this matter and resolve it soon.	7	Public Health
+3	The lift in the housing board building has not worked 4 weeks in Airport Road 4 more tahn two weeks. pls send someone soon	19	Housing Board
+4	Dear sir, the community water tank is not being cleaned in Ring Road without further delay, pls resolve fast	1	Water Supply
+5	A rabid looking dog is roaming near the school in Bypass Road at the earliest. pls resolve fast	10	Animal Control
+6	Kindly note that stray cattle are roaming freely and blocking traffic near Airport Road without further delay. This needs urgent attention from your department.	10	Animal Control
+7	I would like 2 bring to your notice that the roadside land has been illegally occupied 4 private use at School rd This has been going on on a war footing. Kindly send someone 2 check this problem.	14	Encroachment
+8	I wish to lodge a complaint regarding rain water is not draining and flooding our street near MGR Nagar for the past 10 days. I hope for a quick resolution to this issue.	5	Drainage
+9	I wish to lodge a complaint regarding our new electricity connection application has not been processed near Kamaraj Nagar since last month. Please arrange for a permanent solution.	2	Electricity
+10	An epidemic of viral fever is spreading in our ward in Sri Nagar Colony at the earliest. pls do sumthing abt this	7	Public Health
+11	This is 2 formally inform the concerned dept that heavy rain caused the drain 2 overflow into our compound near Periyar Nagar 4 the last week. This needs urgent attention from ur department.	5	Drainage
+12	Sir pls note, in our area Industrial Area the zebra crossing markings have faded completely without, further delay. kindly help us out	9	Traffic Management
+13	Hlo sir the streetlight pole fell down during the storm near Stadium rd as soon as possible. waiting 4 ur reply	6	Street Lighting
+14	This letter is to report that the waste collection truck has not come this week at School Road. This has been going on for the past 10 days. Kindly send someone to check this problem.	12	Waste Management
+15	hello, in our area Bank Street there is no water for the plants in the community garden for a long time now. hope u will look into this soon	8	Parks & Gardens
+16	Hi sir, there is no lighting near the park making it unsafe at night in Nehru Street since morning, kindly help us out	6	Street Lighting
+17	This letter is to report that a fire alarm has been malfunctioning for months in Peace Nagar since last month. I request the department to take immediate steps.	16	Fire & Emergency
+18	Hello, fogging has not been done in our area for months in West Street for the last few days, hope for quick action	7	Public Health
+19	I am a resident of Main Road and would like to inform you that our area is at risk of flooding due to a weak embankment near Main Road for a long time now. Kindly send someone to check this problem.	20	Disaster Management
+20	I wish to lodge a complaint regarding a live wire is hanging dangerously low at School Road. This has been going on at the earliest. I request the department to take immediate steps.	2	Electricity
+21	I would like to bring to your notice that dust pollution from the quarry is affecting residents' health in School Road at the earliest. I requeest the department to take immediate steps.	15	Pollution Control
+22	There is a shortage of drinking water in Industrial Area 4 more than two weeks. pls send someone soon	1	Water Supply
+23	Sir pls note power outage has continued for six hours straight near Anna Nagar immediately. hope for quick action	2	Electricity
+24	The housing board flat allotted 2 us has structural cracks in Stadium Road 4 the last few days. pls send someone soon	19	Housing Board
+25	I would like to request immediate action as relief material promised after the flood has not been distributed near North Extension for the last week. Requesting u to depute staff for inspection.	20	Disaster Management
+26	Kindly note that the footpath is broken and unusable at Bank st This has been going on as soon as possible. Please arrange 4 a permanent solution.	3	Roads
+27	I wish to lodge a cmplnt re an illegal extension has been constructed without any approval in School rd 4 the last few days. Requesting you to depute staff for inspection.	13	Building Violations
+28	Hlo sir the road divider is damaged near Ashok Nagar for a long time now. this is really troubling us	3	Roads
+29	Hey, in our area Bus Stand the drainage system has been clogged 4 weeks at the earliest. pls fix asap	5	Drainage
+30	I am writing to complain about a live wire is hanging dangerously low in Bypass Road as soon as possible. I hope for a quick resolution to this issue	2	Electricity
+31	This is to formally inform the concerned department that a shop has extended its structure onto the public road at Government Colony. This has been going on on a war footing. Requesting you to depute staff for inspection.	14	Encroachment
+32	I wish to lodge a complaint regarding an illegal extension has been constructed without any approval near Peace Nagar on a war footing. Please look into this matter and resolve it soon.	13	Building Violations
+33	This is to formally inform the concerned dept that e-waste is being dumped illegally near the riverside in Old Town since yesterday. I request the dept to take immediate steps.	12	Waste Management
+34	In Industrial Area, the public park has been left unmaintained for months for the past 3 days. Please arrange for a permanent solution.	8	Parks & Gardens
+35	I am a resident of Main Road and would like to inform you that my property tax records show an incorrect assessment at Main Road. This has been going on on a war footing. Kindly take necessary action at the earliest.	18	Revenue Department
+36	This letter is to report that a shop has extended its structure onto the public road near Hospital Road urgently. pls look into this matter & resolve it soon	14	Encroachment
+37	Hello, the water quality is unsafe for drinking in Tank Bund Road since morning, hope for quick action	1	Water Supply
+38	Hi sir the metro station escalator has been out of order near Model Colony right now. pls resolve fast	17	Public Transport
+39	In govt Colony, low pressure means we cannot fill even one bucket since morning. Requesting you 2 depute staff 4 inspection.	1	Water Supply
+40	This is to formally inform the concerned department that raw sewage is being discharged ito the open drain at East Street. This has been going on since yesterday. Please arrange for a permanent solution.	11	Sewerage
+41	I am writing to complain about the sweeping staff have stopped visiting our lane in Stadium Road right now. This needs urgent attention from your department.	4	Sanitation
+42	I would like to request immediate action as the drainage system has been clogged for weeks at College Road. This has been going on for the past 3 days. Requesting you to depute staff for inspection.	5	Drainage
+43	Hlo sir, the waste collection truuck has not come this week in Kamaraj Nagar 4 several months, waiting 4 ur reply	12	Waste Management
+44	I wish to lodge a complaint regarding overcrowding in public buses is a daily problem at Ward 10. This has been going on at the earliest. Kindly take necessary action at the earliest.	17	Public Transport
+45	I wish to lodge a complaint regarding sewage overflow has been happening for over a week in Periyar Nagar at the earliest. I hope for a quick resolution to this issue.	11	Sewerage
+46	This is to formally inform the concerned department that construction waste has been dumped on the roadside near Hospital Road for the last week. Please arrange for a permanent solution.	12	Waste Management
+47	Dear sir, in our area Kamaraj Nagar several streetlights along the road are non functional for several months. hope u will look into this soon	6	Street Lighting
+48	This is to formally inform the concerned dept that the drain cover is broken & poses a danger 2 children at Anna Nagar. This has been going on since last month. Kindly send someone 2 check this problem.	5	Drainage
+49	i would like to bring to your notice that the fire hydrant near our street is not functional at Park Avenue. This has been going on as soon as possible. Please look into this matter and resolve it soon.	16	Fire & Emergency
+50	I would like to bring to your notice that there is a foul smell coming from the drainage near the market in Park Avenue since last month. Requesting you to depute staff for inspection.	4	Sanitation
+51	Illegal structures have been built on government land in Ward 4 for more than two weeks. waiting for ur reply	14	Encroachment
+52	I wish to lodge a complaint regarding industrial effluents are being discharged into the lake near Government Colony as soon as possible. Please arrange for a permanent solution.	15	Pollution Control
+53	In Model Colony, the land registration process has been delayed for months since morning. I request the department to take immediate steps.	18	Revenue Department
+54	This is 2 formally inform the concerned department that traffic congestion has become unbearable during peak hours at South Block. This has been going on for the past 10 days. This needs urgent attention from ur dept	9	Traffic Management
+55	I would like to bring 2 ur notice that overcrowding in public buses is a daily problem at Gandhi Nagar. This has been going on for a long time now. Requesting u to depute staff for inspection.	17	Public Transport
+56	Hlo sir, the park benches are broken and unusable in Temple Street immediately, hope u will look into this soon	8	Parks & Gardens
+57	In Ward 12, construction work is going on beyond permitted hours for the last week. Please arrange for a permanent solution.	13	Building Violations
+58	Hello a nearby factory is releasing toxic smoke into the air near School rd since morning. pls resolve fast	15	Pollution Control
+59	Respected sir/madam, in our area Sri Nagar Colony the electric wires are exposed near the school 4 the last week. pls send someone soon	2	Electricity
+60	Chemical waste from the unit is contaminating the ground water in Hospital rd 4 the past 10 days. this is really troubling us	15	Pollution Control
+61	I am writing to complain about we have not received the revised property tax notice in Ward 7 4 a long time now. Please look into this matter and resolve it soon.	18	Revenue Department
+62	In Temple Street, the road width has been reduuced due to construction material dumping without further delay. This needs urgent attention from your department.	3	Roads
+63	The emergency exit in the building is blocked by storage in College Road since yesterday. waiting for ur reply	16	Fire & Emergency
+64	Sir pls note,safety norms are being ignored at the constructtion site in Vivekananda Street on a war footing, hope for quick action	13	Building Violations
+65	In Ring Road, the garden near our colony has overgrown weeds without further delay. Kindly take necessary action at the earliest.	8	Parks & Gardens
+66	I wish to lodge a cmplnt re medical waste is being disposed of improperly nar the hospital in Model Colony since yesterday. This needs urgent attention from ur department.	12	Waste Management
+67	This is to formally inform the concerned department that the water supply pump keeps tripping in Ward 12 since yesterday. Kindly take necessary action at the earliest.	1	Water Supply
+68	I am a resident of Kovil Street and would like to inform you that the canal near our locality is choked with plastic waste at Kovil Street. This has been going on on a war footing. Please arrange for a permanent solution.	5	Drainage
+69	This is to formally inform the concerned department that waste segregation bins provided have already been damaged in Post Office Street on a war footing. Please look into thiis matter and resolve it soon.	12	Waste Management
+70	I would like 2 bring 2 ur notice that medical waste is being disposed of improperly near the hospital in Ashok Nagar as soon as possible. This needs urgent attention from ur dept	12	Waste Management
+71	Sir pls note, in our area New Colony loud noise pollution from the factory continues throughout the night immediately. pls fix asap	15	Pollution Control
+72	In Market st earthquake safety drills have never been conducted in our locality 4 the past 3 days. pls arrange for a permanent solution.	20	Disaster Management
+73	Hey the manhole cover is missing posing a serious danger near Airport Road for several months. pls send someone soon	11	Sewerage
+74	Respected sir/madam the electricity meter was never installed properly near North Extension right now. hope for quick action	2	Electricity
+75	Dear sir the water supply pump keeps tripping near Kovil Street on a war footing. kindly help us out	1	Water Supply
+76	Medical waste is being disposed of improperly near the hospital in Church Street urgently. pls send someone soon	12	Waste Management
+77	In Park Avenue, our request 4 a caste certificate has not been processed at the earliest. Requesting u 2 depute staff 4 inspection.	18	Revenue Department
+78	2 whom it may concern, the park gate has been locked & inaccessible in Industrial Area 4 the last week, pls do sumthing abt this	8	Parks & Gardens
+79	In Old Town, plastic waste is piling up near the market area for the past 3 days. Requesting u to depute staff for onspection.	12	Waste Management
+80	I am a resident of Industrial Area and would like to inform you that illegal parking is causing traffic jams every day in Industrial Area at the earliest. This needs urgent attention from your department.	9	Traffic Management
+81	Stagnant water in the drain is breeding mosquitoes in Bank Street for more than two weeks. this is really troubling us	5	Drainage
+82	I am writing to complain about the housing board flat allotted to us has structural cracks near New Colony for the last week. Please arrange for a permanent solution.	19	Housing Board
+83	This is to formally inform the concerned department that the tar road has completely worn out in East st without further delay. This needs urgent attention from ur dept	3	Roads
+84	In Cross Cut rd smoke from the nearby unit is causing breathing problems immediately. This needs urgent attention from ur department.	15	Pollution Control
+85	This letter is to report that the market area is extremely unclean and smelly at Airport Road. This has been going on for a long time now. I request the dept 2 take immediate steps.	4	Sanitation
+86	Hey, in our area Bus Stand medical waste is being disposed of improperly near the hospital at the earliest. hope for quick action	12	Waste Management
+87	Hi sir the public toilet is in an extremely unhygienic condition near Old Town for more than two weeks. pls send someone soon	4	Sanitation
+88	This letter is to report that a commercial building is operating without occupancy certificate at Mosque Road. This has been going on for several months. I hope for a quick resolution 2 this issue.	13	Building Violations
+89	The canal near our locality is choked with plastic waste in Lake View Colony for the last few days. kindly help us out	5	Drainage
+90	Hlo sir, there is no bus frequency information available at the stop in Ring Road urgently, this is really troubling us	17	Public Transport
+91	Dear sir, in our area Church Street the newly built flyover has developed cracks without further delay. hoope 4 quick action	3	Roads
+92	I am a resident of Cross Cut Road and would like to inform you that construction debris is blocking the road in Cross Cut Road for the past 10 days. Kindly take necessary action at the earliest.	3	Roads
+93	Hey,, landslide risk near the hill area has not been addressed in Subramaniam Street right now, pls do sumthing abt this	20	Disaster Management
+94	I am writing to complain about heavy flooding has cut off our entire neighborhood near Bank Street since last month. I hope for a quick resolution to this issue.	20	Disaster Management
+95	This is 2 formally inform the concerned department that medical waste is being disposed of improperly near the hospital near Tank Bund rd for the last week. Kindly send someone 2 check this problem.	12	Waste Management
+96	Hello, in our area East Street the water supply pump keeps tripping without further delay. hope u will look into this soon	1	Water Supply
+97	There is an increase in typhoid cases in the neighborhood in Ward 4 since morning. pls send someone soon	7	Public Health
+98	The road has not been repaired for years in Kamaraj Nagar for the last few days. this is really troubling us	3	Roads
+99	Hi sir the apartment was built violating setback norms near Kovil Street right now. pls send someone soon	13	Building Violations
+100	Hlo sir water is leaking from an underground pipe wasting thousands of litres near Hospital Road without further delay. hope u will look into this soon	1	Water Supply
