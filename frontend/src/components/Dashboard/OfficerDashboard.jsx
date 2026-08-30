@@ -1,79 +1,127 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import OfficerComplaints from "./OfficerComplaints";
 import OfficerNotifications from "./OfficerNotifications";
 import OfficerSettings from "./OfficerSettings";
 import OfficerProfile from "./OfficerProfile";
+import { api } from "../../utils/api";
 
 export default function OfficerDashboard({ onLogout }) {
   const [searchVal, setSearchVal] = useState("");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [actionComments, setActionComments] = useState("");
-  const [actionType, setActionType] = useState("Contract Dispatched");
+  const [actionType, setActionType] = useState("ACCEPT");
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [activeView, setActiveView] = useState("dashboard"); // "dashboard", "complaints", "notifications", "settings", "profile"
+  const [loading, setLoading] = useState(true);
 
   // Dynamic Metrics states
   const [metrics, setMetrics] = useState({
-    assigned: 248,
-    new: 32,
-    progress: 156,
-    priority: 14,
-    overdue: 8,
+    assigned: 0,
+    new: 0,
+    progress: 0,
+    priority: 0,
+    overdue: 0,
   });
 
   // Salem High Priority Complaints List
-  const [complaints, setComplaints] = useState([
-    {
-      id: "SAL-HW-0921",
-      overdueText: "2 Days Overdue",
-      isOverdue: true,
-      title: "Severe Potholes on Omalur Main Road",
-      description:
-        "Multiple large potholes causing accidents near the toll plaza. Requires immediate patching before monsoon.",
-      statusColor: "text-error",
-      statusIcon: "schedule",
-    },
-    {
-      id: "SAL-HW-0935",
-      overdueText: "Due Today",
-      isOverdue: false,
-      title: "Bridge Expansion Joint Failure - Yercaud Foothills",
-      description:
-        "The metal expansion joint on bridge #42 has detached, creating a severe hazard for two-wheelers.",
-      statusColor: "text-secondary",
-      statusIcon: "timer",
-    },
-  ]);
+  const [complaints, setComplaints] = useState([]);
 
   // Timeline logs
   const [timeline, setTimeline] = useState([
     {
       id: "log-1",
-      type: "Status Updated: Resolved",
-      detail: "SAL-HW-0850 • Attur Bypass",
-      time: "10 mins ago",
+      type: "Console Loaded",
+      detail: "Nodal officer console initialized successfully.",
+      time: "Just now",
       icon: "check",
       bgClass: "bg-tertiary-fixed text-on-tertiary-fixed",
-    },
-    {
-      id: "log-2",
-      type: "New Assignment",
-      detail: "SAL-HW-0941 • Mettur Road",
-      time: "45 mins ago",
-      icon: "add",
-      bgClass: "bg-blue-100 text-blue-800",
-    },
-    {
-      id: "log-3",
-      type: "Contractor Dispatched",
-      detail: "SAL-HW-0912 • Steel Plant Rd",
-      time: "2 hours ago",
-      icon: "sync",
-      bgClass: "bg-orange-100 text-orange-800",
-    },
+    }
   ]);
 
-  // Filter complaints based on search value
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Fetch stats
+      const statsRes = await api.officer.getDashboardStats();
+      if (statsRes.success && statsRes.data) {
+        setMetrics({
+          assigned: statsRes.data.assigned || 0,
+          new: statsRes.data.new || 0,
+          progress: statsRes.data.inProgress || 0,
+          priority: statsRes.data.critical || 0,
+          overdue: statsRes.data.escalated || 0,
+        });
+      }
+
+      // Fetch complaints
+      const compRes = await api.officer.getAssignedComplaints(1, 20);
+      if (compRes.success && compRes.data) {
+        const highPriority = compRes.data
+          .filter(item => item.priority === "HIGH" || item.priority === "CRITICAL" || item.status === "ESCALATED")
+          .map(item => ({
+            complaint_id: item.complaint_id,
+            id: item.ticket_number,
+            overdueText: item.status === "ESCALATED" ? "Escalated to Admin" : "SLA Active",
+            isOverdue: item.status === "ESCALATED",
+            title: item.title,
+            description: item.description,
+            statusColor: item.status === "ESCALATED" ? "text-error" : "text-secondary",
+            statusIcon: item.status === "ESCALATED" ? "schedule" : "timer",
+            status: item.status,
+            logs: item.status_history || []
+          }));
+        setComplaints(highPriority);
+      }
+    } catch (err) {
+      console.error("Error loading officer dashboard statistics:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [activeView]);
+
+  const handleOpenActionModal = (comp) => {
+    setSelectedComplaint(comp);
+    setActionComments("");
+    setActionType("ACCEPT");
+  };
+
+  const handleActionSubmit = async (e) => {
+    e.preventDefault();
+    if (!actionComments.trim() && actionType !== "ACCEPT") {
+      alert("Please enter action comments.");
+      return;
+    }
+
+    try {
+      const complaintId = selectedComplaint.complaint_id;
+      if (actionType === "ACCEPT") {
+        await api.officer.acceptComplaint(complaintId);
+      } else if (actionType === "START") {
+        await api.officer.startWork(complaintId);
+      } else if (actionType === "HOLD") {
+        await api.officer.holdComplaint(complaintId, actionComments);
+      } else if (actionType === "ESCALATE") {
+        await api.officer.escalateComplaint(complaintId, actionComments);
+      } else if (actionType === "RESOLVE") {
+        await api.officer.resolveComplaint(complaintId, actionComments);
+      }
+
+      setSelectedComplaint(null);
+      setShowSuccessToast(true);
+      fetchDashboardData();
+      
+      setTimeout(() => {
+        setShowSuccessToast(false);
+      }, 4000);
+    } catch (err) {
+      alert(err.message || "Failed to submit action.");
+    }
+  };
+
   const filteredComplaints = complaints.filter((comp) => {
     const val = searchVal.toLowerCase();
     return (
@@ -82,56 +130,6 @@ export default function OfficerDashboard({ onLogout }) {
       comp.description.toLowerCase().includes(val)
     );
   });
-
-  const handleOpenActionModal = (comp) => {
-    setSelectedComplaint(comp);
-    setActionComments("");
-    setActionType("Contractor Dispatched");
-  };
-
-  const handleActionSubmit = (e) => {
-    e.preventDefault();
-    if (!actionComments.trim()) {
-      alert("Please enter action comments.");
-      return;
-    }
-
-    // Process submission:
-    // 1. Remove from High Priority Complaints List
-    setComplaints((prev) => prev.filter((c) => c.id !== selectedComplaint.id));
-
-    // 2. Add log entry to Timeline
-    const newLog = {
-      id: "log-" + Date.now(),
-      type: actionType,
-      detail: `${selectedComplaint.id} • ${actionComments}`,
-      time: "Just now",
-      icon: actionType.includes("Resolved") ? "check" : "sync",
-      bgClass: actionType.includes("Resolved")
-        ? "bg-tertiary-fixed text-on-tertiary-fixed"
-        : "bg-orange-100 text-orange-850",
-    };
-    setTimeline((prev) => [newLog, ...prev]);
-
-    // 3. Decrement priority count in metrics
-    setMetrics((prev) => ({
-      ...prev,
-      priority: Math.max(0, prev.priority - 1),
-      progress: actionType.includes("Resolved")
-        ? Math.max(0, prev.progress - 1)
-        : prev.progress,
-      overdue: selectedComplaint.isOverdue
-        ? Math.max(0, prev.overdue - 1)
-        : prev.overdue,
-    }));
-
-    // Clean up and show success feedback toast
-    setSelectedComplaint(null);
-    setShowSuccessToast(true);
-    setTimeout(() => {
-      setShowSuccessToast(false);
-    }, 4000);
-  };
 
   return (
     <div className="bg-[#f9f9fe] text-[#1a1c1f] min-h-screen flex w-full">

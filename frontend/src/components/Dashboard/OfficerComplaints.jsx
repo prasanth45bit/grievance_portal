@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "../../utils/api";
 
 export default function OfficerComplaints({ searchVal }) {
   const [statusFilter, setStatusFilter] = useState("All Statuses");
@@ -7,101 +8,45 @@ export default function OfficerComplaints({ searchVal }) {
 
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [actionComments, setActionComments] = useState("");
-  const [actionType, setActionType] = useState("Contractor Dispatched");
+  const [actionType, setActionType] = useState("ACCEPT");
   const [toastMessage, setToastMessage] = useState(null);
+  
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Salem Highway complaints logs with detailed fields & log histories
-  const [tickets, setTickets] = useState([
-    {
-      id: "#CPG-HW-001",
-      title: "Pothole on Salem-Bengaluru Highway",
-      category: "Road Repair",
-      priority: "High",
-      createdDate: "12 Oct 2023",
-      deadline: "15 Oct 2023",
-      status: "Open",
-      location: "Salem-Bengaluru Highway, near Toll Plaza Omalur",
-      coordinates: "11.7243° N, 78.0460° E",
-      description:
-        "Multiple large potholes causing accidents near the toll plaza. Requires immediate patching before monsoon. Heavy trucks and passenger vehicles are swerving dangerously to avoid the damaged section.",
-      evidenceFile: "pothole_evidence_omalur.jpg",
-      logs: [
-        {
-          time: "12 Oct 2023 09:15 AM",
-          action: "Ticket Registered",
-          detail: "Grievance auto-classified & routed to Salem Highways Department by AI Classifier.",
-        },
-        {
-          time: "12 Oct 2023 11:30 AM",
-          action: "Officer Assigned",
-          detail: "Assigned to District Officer Ramesh Kumar for inspection and action.",
-        },
-      ],
-    },
-    {
-      id: "#CPG-HW-002",
-      title: "Damaged culvert near Mettur",
-      category: "Bridge/Culvert",
-      priority: "High",
-      createdDate: "10 Oct 2023",
-      deadline: "13 Oct 2023 (Overdue)",
-      isOverdue: true,
-      status: "In Progress",
-      location: "Mettur Dam access road, near culvert #4",
-      coordinates: "11.7865° N, 77.8012° E",
-      description:
-        "The side masonry walls of the culvert have collapsed, blocking partial water flow and undermining the roadway shoulder. Water is seeping into adjacent farmlands.",
-      evidenceFile: "culvert_damage_mettur.pdf",
-      logs: [
-        {
-          time: "10 Oct 2023 08:30 AM",
-          action: "Grievance Filed",
-          detail: "Filed by resident association of Mettur rural sector.",
-        },
-        {
-          time: "10 Oct 2023 10:00 AM",
-          action: "AI Routing Done",
-          detail: "Routed directly to Bridge & Drainage cell, Salem.",
-        },
-        {
-          time: "11 Oct 2023 02:15 PM",
-          action: "Inspection Ordered",
-          detail: "District Nodal Officer ordered pre-monsoon survey. Status updated to In Progress.",
-        },
-      ],
-    },
-    {
-      id: "#CPG-HW-003",
-      title: "Missing signage on Omalur bypass",
-      category: "Signage",
-      priority: "Low",
-      createdDate: "05 Oct 2023",
-      deadline: "20 Oct 2023",
-      status: "Resolved",
-      location: "Omalur bypass, Highway division road junction",
-      coordinates: "11.7311° N, 78.0725° E",
-      description:
-        "The warning signboards for the sharp curve on the bypass are missing, creating speed hazards during night travel.",
-      evidenceFile: "signage_missing_location.jpg",
-      logs: [
-        {
-          time: "05 Oct 2023 10:10 AM",
-          action: "Ticket Registered",
-          detail: "Ticket classified as Low Priority Signage issue.",
-        },
-        {
-          time: "06 Oct 2023 09:00 AM",
-          action: "Contractor Dispatched",
-          detail: "Signboards replacement order sent to local contractor.",
-        },
-        {
-          time: "08 Oct 2023 04:00 PM",
-          action: "Status Updated: Resolved",
-          detail: "Contractor completed mounting new reflective curve indicators. Verified & closed.",
-        },
-      ],
-    },
-  ]);
+  const fetchTickets = async () => {
+    setLoading(true);
+    try {
+      const res = await api.officer.getAssignedComplaints(1, 50);
+      if (res.success && res.data) {
+        // Map the backend format to match frontend component properties
+        const mapped = res.data.map(item => ({
+          complaint_id: item.complaint_id,
+          id: item.ticket_number,
+          title: item.title,
+          category: item.department?.department_name || "General",
+          priority: item.priority === "CRITICAL" || item.priority === "HIGH" ? "High" : "Medium",
+          createdDate: new Date(item.created_at).toLocaleDateString(),
+          deadline: "SLA Standard (7 Days)",
+          status: item.status,
+          location: item.address,
+          coordinates: `${item.latitude}° N, ${item.longitude}° E`,
+          description: item.description,
+          evidenceFile: item.images && item.images.length ? item.images[0].file_name : "No Attachments",
+          logs: item.status_history || []
+        }));
+        setTickets(mapped);
+      }
+    } catch (err) {
+      console.error("Error loading officer assignments:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [toastMessage]);
 
   // Handle Export button
   const handleExport = () => {
@@ -115,65 +60,41 @@ export default function OfficerComplaints({ searchVal }) {
   const handleOpenModal = (ticket) => {
     setSelectedTicket(ticket);
     setActionComments("");
-    setActionType(
-      ticket.status === "In Progress"
-        ? "Status Updated: Resolved"
-        : "Contractor Dispatched"
-    );
+    setActionType("ACCEPT");
   };
 
 
   // Submit action handler
-  const handleActionSubmit = (e) => {
+  const handleActionSubmit = async (e) => {
     e.preventDefault();
-    if (!actionComments.trim()) {
+    if (!actionComments.trim() && actionType !== "ACCEPT") {
       alert("Please enter comments detailing the action taken.");
       return;
     }
 
-    let nextStatus = "In Progress";
-    if (actionType === "Status Updated: Resolved") {
-      nextStatus = "Resolved";
+    try {
+      const complaintId = selectedTicket.complaint_id;
+      if (actionType === "ACCEPT") {
+        await api.officer.acceptComplaint(complaintId);
+      } else if (actionType === "START") {
+        await api.officer.startWork(complaintId);
+      } else if (actionType === "HOLD") {
+        await api.officer.holdComplaint(complaintId, actionComments);
+      } else if (actionType === "ESCALATE") {
+        await api.officer.escalateComplaint(complaintId, actionComments);
+      } else if (actionType === "RESOLVE") {
+        await api.officer.resolveComplaint(complaintId, actionComments);
+      }
+
+      setToastMessage(`Grievance ${selectedTicket.id} status updated successfully.`);
+      setSelectedTicket(null);
+      setTimeout(() => {
+        setToastMessage(null);
+      }, 4000);
+    } catch (err) {
+      alert(err.message || "Failed to update grievance state.");
+      console.error("Grievance update error:", err);
     }
-
-    const currentFormattedTime = new Date().toLocaleString("en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-
-    const newLogItem = {
-      time: currentFormattedTime,
-      action: actionType,
-      detail: actionComments,
-    };
-
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === selectedTicket.id) {
-          return {
-            ...t,
-            status: nextStatus,
-            isOverdue: nextStatus === "Resolved" ? false : t.isOverdue,
-            deadline:
-              nextStatus === "Resolved"
-                ? t.deadline.replace(" (Overdue)", "")
-                : t.deadline,
-            logs: [newLogItem, ...t.logs],
-          };
-        }
-        return t;
-      })
-    );
-
-    setToastMessage(`Grievance ${selectedTicket.id} updated with action logs.`);
-    setSelectedTicket(null);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
   };
 
   // Filter logic
@@ -428,9 +349,11 @@ export default function OfficerComplaints({ searchVal }) {
                       onChange={(e) => setActionType(e.target.value)}
                       className="block w-full px-3 py-2 border border-[#c3c6d1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#001e40] bg-white text-xs text-gray-800 font-semibold"
                     >
-                      <option value="Contractor Dispatched">Contractor Dispatched</option>
-                      <option value="Inspection Ordered">Inspection Ordered</option>
-                      <option value="Status Updated: Resolved">Resolved & Closed</option>
+                      <option value="ACCEPT">Accept Ticket</option>
+                      <option value="START">Start Work</option>
+                      <option value="HOLD">Place on Hold</option>
+                      <option value="ESCALATE">Escalate to Admin</option>
+                      <option value="RESOLVE">Resolve Ticket</option>
                     </select>
                   </div>
 
@@ -489,11 +412,11 @@ export default function OfficerComplaints({ searchVal }) {
                   <div key={index} className="relative pl-5">
                     <span className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[#001e40] border-2 border-white" />
                     <p className="text-xs font-bold text-[#001e40]">{log.action}</p>
-                    <p className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">
-                      {log.detail}
+                    <p className="text-[11px] text-gray-650 mt-0.5 leading-relaxed">
+                      {log.remarks || log.detail}
                     </p>
                     <p className="text-[10px] text-gray-400 font-semibold mt-1">
-                      {log.time}
+                      {log.created_at ? new Date(log.created_at).toLocaleString() : log.time}
                     </p>
                   </div>
                 ))}
@@ -553,10 +476,12 @@ export default function OfficerComplaints({ searchVal }) {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full bg-gray-50 border border-[#c3c6d1] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#001e40] focus:border-[#001e40] outline-none"
             >
-              <option>All Statuses</option>
-              <option>Open</option>
-              <option>In Progress</option>
-              <option>Resolved</option>
+              <option value="All Statuses">All Statuses</option>
+              <option value="ASSIGNED">Assigned</option>
+              <option value="ACCEPTED">Accepted</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="ESCALATED">Escalated</option>
             </select>
           </div>
 

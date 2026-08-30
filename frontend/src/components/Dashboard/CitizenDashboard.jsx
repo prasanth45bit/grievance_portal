@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopNavbar from "./TopNavbar";
 import NewComplaintForm from "./NewComplaintForm";
@@ -7,51 +7,47 @@ import GrievanceHistory from "./GrievanceHistory";
 import GrievanceTracking from "./GrievanceTracking";
 import AccountSettings from "./AccountSettings";
 import NotificationCenter from "./NotificationCenter";
+import { api } from "../../utils/api";
 
 export default function CitizenDashboard({ onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [activeView, setActiveView] = useState("dashboard"); // "dashboard", "new-complaint", "profile", "history", "track", "settings", "notifications"
+  const [complaintsList, setComplaintsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState({ total: 0, pending: 0, resolved: 0, escalated: 0 });
 
-  const complaints = [
-    {
-      id: "#CP2024/9912",
-      subject: "Water Leakage in Public Park",
-      category: "Civic Amenities",
-      status: "In Progress",
-      date: "12 June 2024",
-    },
-    {
-      id: "#CP2024/9845",
-      subject: "Street Light Not Working",
-      category: "Electricity",
-      status: "Resolved",
-      date: "08 June 2024",
-    },
-    {
-      id: "#CP2024/9711",
-      subject: "Incomplete Road Construction",
-      category: "Roads & Transport",
-      status: "Escalated",
-      date: "02 June 2024",
-    },
-  ];
+  const fetchComplaints = async () => {
+    setLoading(true);
+    try {
+      const res = await api.citizen.getMyComplaints(1, 20, search);
+      if (res.success && res.data) {
+        setComplaintsList(res.data);
+        
+        // Calculate metrics based on standard database enums
+        const total = res.data.length;
+        const pending = res.data.filter(c => ["SUBMITTED", "AI_ANALYZED", "ASSIGNED", "ACCEPTED", "IN_PROGRESS", "ON_HOLD"].includes(c.status)).length;
+        const resolved = res.data.filter(c => ["RESOLVED", "CLOSED"].includes(c.status)).length;
+        const escalated = res.data.filter(c => c.status === "ESCALATED").length;
+        setMetrics({ total, pending, resolved, escalated });
+      }
+    } catch (err) {
+      console.error("Error fetching citizen complaints:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredComplaints = complaints.filter((complaint) => {
-    const value = search.toLowerCase();
-    return (
-      complaint.id.toLowerCase().includes(value) ||
-      complaint.subject.toLowerCase().includes(value) ||
-      complaint.category.toLowerCase().includes(value)
-    );
-  });
+  useEffect(() => {
+    fetchComplaints();
+  }, [activeView, search]);
 
   const getStatusStyle = (status) => {
-    if (status === "Resolved") {
+    if (status === "Resolved" || status === "RESOLVED" || status === "CLOSED") {
       return "bg-green-100 text-green-700";
     }
-    if (status === "Escalated") {
+    if (status === "Escalated" || status === "ESCALATED") {
       return "bg-red-100 text-red-700";
     }
     return "bg-orange-100 text-orange-700";
@@ -126,7 +122,7 @@ export default function CitizenDashboard({ onLogout }) {
                   <p className="text-sm font-medium text-gray-500">
                     Total Grievances
                   </p>
-                  <h3 className="text-3xl font-bold text-gray-900">24</h3>
+                  <h3 className="text-3xl font-bold text-gray-900">{metrics.total}</h3>
                 </div>
 
                 {/* Pending */}
@@ -142,7 +138,7 @@ export default function CitizenDashboard({ onLogout }) {
                     </span>
                   </div>
                   <p className="text-sm font-medium text-gray-500">Pending</p>
-                  <h3 className="text-3xl font-bold text-gray-900">06</h3>
+                  <h3 className="text-3xl font-bold text-gray-900">{metrics.pending}</h3>
                 </div>
 
                 {/* Resolved */}
@@ -156,7 +152,7 @@ export default function CitizenDashboard({ onLogout }) {
                     </span>
                   </div>
                   <p className="text-sm font-medium text-gray-500">Resolved</p>
-                  <h3 className="text-3xl font-bold text-gray-900">17</h3>
+                  <h3 className="text-3xl font-bold text-gray-900">{metrics.resolved}</h3>
                 </div>
 
                 {/* Escalated */}
@@ -172,7 +168,7 @@ export default function CitizenDashboard({ onLogout }) {
                     </span>
                   </div>
                   <p className="text-sm font-medium text-gray-500">Escalated</p>
-                  <h3 className="text-3xl font-bold text-gray-900">01</h3>
+                  <h3 className="text-3xl font-bold text-gray-900">{metrics.escalated}</h3>
                 </div>
               </div>
 
@@ -300,20 +296,20 @@ export default function CitizenDashboard({ onLogout }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-300">
-                      {filteredComplaints.length > 0 ? (
-                        filteredComplaints.map((complaint) => (
+                      {complaintsList.length > 0 ? (
+                        complaintsList.map((complaint) => (
                           <tr
-                            key={complaint.id}
+                            key={complaint.complaint_id}
                             className="hover:bg-gray-50 transition-colors"
                           >
                             <td className="px-6 py-4 text-sm font-bold text-primary whitespace-nowrap">
-                              {complaint.id}
+                              {complaint.ticket_number}
                             </td>
                             <td className="px-6 py-4 text-sm whitespace-nowrap">
-                              {complaint.subject}
+                              {complaint.title}
                             </td>
                             <td className="px-6 py-4 text-sm whitespace-nowrap">
-                              {complaint.category}
+                              {complaint.department?.department_name || "Unassigned"}
                             </td>
                             <td className="px-6 py-4">
                               <span
@@ -332,7 +328,7 @@ export default function CitizenDashboard({ onLogout }) {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
-                              {complaint.date}
+                              {new Date(complaint.created_at).toLocaleDateString()}
                             </td>
                             <td className="px-6 py-4">
                               <button
@@ -416,9 +412,9 @@ export default function CitizenDashboard({ onLogout }) {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
               <div>
-                <p className="text-xs text-gray-500">Complaint ID</p>
+                <p className="text-xs text-gray-500">Ticket Number</p>
                 <h3 className="text-xl font-bold text-primary">
-                  {selectedComplaint.id}
+                  {selectedComplaint.ticket_number}
                 </h3>
               </div>
               <button
@@ -431,16 +427,23 @@ export default function CitizenDashboard({ onLogout }) {
 
             <div className="p-6 space-y-5">
               <div>
-                <p className="text-xs text-gray-500">Subject</p>
+                <p className="text-xs text-gray-500">Title / Subject</p>
                 <p className="font-semibold mt-1">
-                  {selectedComplaint.subject}
+                  {selectedComplaint.title}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-500">Category</p>
+                <p className="text-xs text-gray-500">Description</p>
+                <p className="text-sm mt-1 text-gray-700">
+                  {selectedComplaint.description}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-500">Assigned Department</p>
                 <p className="font-semibold mt-1">
-                  {selectedComplaint.category}
+                  {selectedComplaint.department?.department_name || "Unassigned"}
                 </p>
               </div>
 
@@ -459,7 +462,9 @@ export default function CitizenDashboard({ onLogout }) {
 
               <div>
                 <p className="text-xs text-gray-500">Filed Date</p>
-                <p className="font-semibold mt-1">{selectedComplaint.date}</p>
+                <p className="font-semibold mt-1">
+                  {new Date(selectedComplaint.created_at).toLocaleDateString()}
+                </p>
               </div>
             </div>
 

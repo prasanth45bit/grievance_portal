@@ -143,8 +143,13 @@ export default function RegisterForm({
                   className="form-input appearance-none pr-10"
                 >
                   <option value="">Select District</option>
-                  <option value="1">District 1</option>
-                  <option value="2">District 2</option>
+                  <option value="3">Chennai</option>
+                  <option value="4">Coimbatore</option>
+                  <option value="8">Erode</option>
+                  <option value="23">Salem</option>
+                  <option value="29">Tiruchirappalli</option>
+                  <option value="32">Tiruppur</option>
+                  <option value="14">Madurai</option>
                 </select>
                 <span className="select-icon material-symbols-outlined">
                   expand_more

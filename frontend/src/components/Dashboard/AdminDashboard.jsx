@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "../../utils/api";
 
 export default function AdminDashboard({ onLogout }) {
   const [activeView, setActiveView] = useState("dashboard"); // 'dashboard', 'complaints', 'officers', 'reports', 'notifications', 'profile', 'settings'
@@ -33,141 +34,119 @@ export default function AdminDashboard({ onLogout }) {
     email: "",
     phone: "",
     district: "",
-    designation: "",
+    designation: "AE",
     status: "Active"
   });
 
   // Officers List state
-  const [officers, setOfficers] = useState([
-    {
-      id: "HW-8942",
-      name: "Ramesh Srinivasan",
-      initials: "RS",
-      district: "Salem",
-      pending: 12,
-      progress: 5,
-      resolved: 142,
-      workload: "Optimal",
-      bgClass: "bg-primary-container text-on-primary-container"
-    },
-    {
-      id: "HW-7105",
-      name: "Kavitha Natarajan",
-      initials: "KN",
-      district: "Erode",
-      pending: 45,
-      progress: 18,
-      resolved: 89,
-      workload: "High",
-      bgClass: "bg-secondary-container text-on-secondary-container"
-    },
-    {
-      id: "HW-3321",
-      name: "Vijay Joseph",
-      initials: "VJ",
-      district: "Coimbatore",
-      pending: 3,
-      progress: 2,
-      resolved: 215,
-      workload: "Low",
-      bgClass: "bg-tertiary-container text-on-tertiary-container"
-    }
-  ]);
+  const [officers, setOfficers] = useState([]);
 
-  // Admin complaints queue mock data
-  const [complaints, setComplaints] = useState([
-    {
-      id: "GRV-2026-001245",
-      subject: "Major Pothole on NH-44 near junction",
-      district: "Salem",
-      category: "Infrastructure",
-      priority: "Critical",
-      assignedOfficer: "Ramesh Kumar",
-      status: "In Progress",
-      date: "Oct 24, 2023",
-      description: "Severe pothole at intersection causing traffic slow down and dangerous vehicle lane shifts. Needs immediate hot mix asphalt patching before rain."
-    },
-    {
-      id: "GRV-2026-001246",
-      subject: "Bridge expansion joint damaged",
-      district: "Erode",
-      category: "Maintenance",
-      priority: "High",
-      assignedOfficer: "Suresh Pillai",
-      status: "New",
-      date: "Oct 25, 2023",
-      description: "Concrete spalling around joint headers on national highway bypass bridge. Re-anchoring of compression seal profile required."
-    },
-    {
-      id: "GRV-2026-001247",
-      subject: "Streetlight non-functional on bypass",
-      district: "Coimbatore",
-      category: "Electrical",
-      priority: "Medium",
-      assignedOfficer: "Anita Desai",
-      status: "Resolved",
-      date: "Oct 20, 2023",
-      description: "A block of 5 sodium lights are out of service along the bypass curve. Local cable splice repaired and lamps replaced."
-    },
-    {
-      id: "GRV-2026-001248",
-      subject: "Minor waterlogging during rain",
-      district: "Salem",
-      category: "Drainage",
-      priority: "Low",
-      assignedOfficer: "Ramesh Kumar",
-      status: "Assigned",
-      date: "Oct 26, 2023",
-      description: "Gully grating is clogged with debris and dry leaves, preventing surface run-off during heavy monsoon downpours."
+  // Admin complaints queue state
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [metrics, setMetrics] = useState({
+    totalComplaints: 0,
+    pendingComplaints: 0,
+    resolvedComplaints: 0,
+    highPriorityComplaints: 0,
+    resolutionPercentage: 0
+  });
+
+  const fetchAdminData = async () => {
+    setLoading(true);
+    try {
+      // Fetch stats
+      const statsRes = await api.admin.getDashboardStats();
+      if (statsRes.success && statsRes.data) {
+        setMetrics(statsRes.data.metrics);
+      }
+
+      // Fetch officers
+      const officersRes = await api.admin.getOfficers();
+      if (officersRes.success && officersRes.data) {
+        const mappedOfficers = officersRes.data.map(o => ({
+          id: o.employee_id,
+          name: o.full_name,
+          initials: o.full_name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2) || "AE",
+          district: o.district?.district_name || "Salem",
+          pending: o.complaints ? o.complaints.filter(c => ["SUBMITTED", "ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(c.status)).length : 0,
+          progress: o.complaints ? o.complaints.filter(c => c.status === "IN_PROGRESS").length : 0,
+          resolved: o.complaints ? o.complaints.filter(c => ["RESOLVED", "CLOSED"].includes(c.status)).length : 0,
+          workload: o.status === "ACTIVE" ? "Optimal" : "Inactive",
+          bgClass: "bg-primary-container text-on-primary-container"
+        }));
+        setOfficers(mappedOfficers);
+      }
+
+      // Fetch complaints
+      const complaintsRes = await api.admin.getGrievances(1, 100);
+      if (complaintsRes.success && complaintsRes.data) {
+        const mappedComplaints = complaintsRes.data.map(c => ({
+          complaint_id: c.complaint_id,
+          id: c.ticket_number,
+          subject: c.title,
+          district: c.district?.district_name || "Salem",
+          category: c.department?.department_name || "General",
+          priority: c.priority === "CRITICAL" || c.priority === "HIGH" ? "High" : "Medium",
+          assignedOfficer: c.officer?.full_name || "Unassigned",
+          status: c.status,
+          date: new Date(c.created_at).toLocaleDateString(),
+          description: c.description
+        }));
+        setComplaints(mappedComplaints);
+      }
+    } catch (err) {
+      console.error("Error loading admin dashboard details:", err);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    fetchAdminData();
+  }, [activeView]);
 
   const handleDownloadReport = (format) => {
     alert(`Highways department grievance status report dispatched successfully in ${format} format.`);
   };
 
-  const handleCreateOfficer = (e) => {
+  const handleCreateOfficer = async (e) => {
     e.preventDefault();
     if (!newOfficer.fullName || !newOfficer.empId || !newOfficer.email || !newOfficer.district || !newOfficer.designation) {
       alert("Please fill in all required fields to register the officer.");
       return;
     }
 
-    const initials = newOfficer.fullName
-      .split(" ")
-      .map(n => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
+    try {
+      const payload = {
+        fullName: newOfficer.fullName,
+        email: newOfficer.email,
+        phone: newOfficer.phone || "9876543210",
+        employeeId: newOfficer.empId,
+        designation: newOfficer.designation,
+        districtId: parseInt(newOfficer.district) || 23,
+        password: "Password123"
+      };
 
-    const pendingCount = 0;
-    const progressCount = 0;
-    const resolvedCount = 0;
-
-    const newRow = {
-      id: newOfficer.empId,
-      name: newOfficer.fullName,
-      initials: initials || "AE",
-      district: newOfficer.district,
-      pending: pendingCount,
-      progress: progressCount,
-      resolved: resolvedCount,
-      workload: "Low",
-      bgClass: "bg-gray-200 text-gray-700"
-    };
-
-    setOfficers(prev => [...prev, newRow]);
-    setIsModalOpen(false);
-    // Reset form
-    setNewOfficer({
-      fullName: "",
-      empId: "",
-      email: "",
-      phone: "",
-      district: "",
-      designation: "",
-      status: "Active"
-    });
+      const res = await api.admin.registerOfficer(payload);
+      if (res.success) {
+        alert("Officer registered successfully in database!");
+        setIsModalOpen(false);
+        setNewOfficer({
+          fullName: "",
+          empId: "",
+          email: "",
+          phone: "",
+          district: "",
+          designation: "AE",
+          status: "Active"
+        });
+        fetchAdminData();
+      }
+    } catch (err) {
+      alert(err.message || "Failed to register officer. Please try again.");
+    }
   };
 
   const handleApplyFilters = () => {
@@ -184,10 +163,10 @@ export default function AdminDashboard({ onLogout }) {
   });
 
   const filteredComplaints = complaints.filter(c => {
-    const matchesSearch = !appliedFilters.search ||
-      c.id.toLowerCase().includes(appliedFilters.search.toLowerCase()) ||
-      c.subject.toLowerCase().includes(appliedFilters.search.toLowerCase()) ||
-      c.district.toLowerCase().includes(appliedFilters.search.toLowerCase());
+    const matchesSearch = !searchVal ||
+      c.id.toLowerCase().includes(searchVal.toLowerCase()) ||
+      c.subject.toLowerCase().includes(searchVal.toLowerCase()) ||
+      c.district.toLowerCase().includes(searchVal.toLowerCase());
 
     const matchesDistrict = !appliedFilters.district ||
       c.district.toLowerCase() === appliedFilters.district.toLowerCase();
@@ -414,43 +393,43 @@ export default function AdminDashboard({ onLogout }) {
                 <div className="bg-white rounded-xl p-4 border border-[#c3c6d1] flex flex-col justify-between shadow-sm hover:border-primary transition-colors">
                   <span className="material-symbols-outlined text-gray-500 text-[20px] mb-4">assignment</span>
                   <div>
-                    <div className="text-2xl font-bold text-gray-800">1,248</div>
+                    <div className="text-2xl font-bold text-gray-800">{metrics.totalComplaints}</div>
                     <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">Total Complaints</div>
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-[#c3c6d1] flex flex-col justify-between shadow-sm hover:border-primary transition-colors">
                   <span className="material-symbols-outlined text-primary text-[20px] mb-4">fiber_new</span>
                   <div>
-                    <div className="text-2xl font-bold text-primary">142</div>
-                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">New</div>
+                    <div className="text-2xl font-bold text-primary">{Math.max(0, metrics.totalComplaints - metrics.resolvedComplaints)}</div>
+                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">Active / Open</div>
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-[#c3c6d1] flex flex-col justify-between shadow-sm hover:border-primary transition-colors">
                   <span className="material-symbols-outlined text-[#fe9832] text-[20px] mb-4">pending_actions</span>
                   <div>
-                    <div className="text-2xl font-bold text-gray-850">892</div>
-                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">In Progress</div>
+                    <div className="text-2xl font-bold text-gray-850">{metrics.pendingComplaints}</div>
+                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">Pending</div>
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-[#c3c6d1] flex flex-col justify-between shadow-sm hover:border-primary transition-colors">
-                  <span className="material-symbols-outlined text-green-650 text-[20px] mb-4">task_alt</span>
+                  <span className="material-symbols-outlined text-green-655 text-[20px] mb-4">task_alt</span>
                   <div>
-                    <div className="text-2xl font-bold text-gray-850">1,045</div>
+                    <div className="text-2xl font-bold text-gray-850">{metrics.resolvedComplaints}</div>
                     <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">Resolved</div>
                   </div>
                 </div>
                 <div className="bg-white rounded-xl p-4 border border-[#c3c6d1] flex flex-col justify-between shadow-sm hover:border-primary transition-colors">
                   <span className="material-symbols-outlined text-[#fe9832] text-[20px] mb-4 icon-fill">warning</span>
                   <div>
-                    <div className="text-2xl font-bold text-[#fe9832]">45</div>
+                    <div className="text-2xl font-bold text-[#fe9832]">{metrics.highPriorityComplaints}</div>
                     <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">High Priority</div>
                   </div>
                 </div>
-                <div className="bg-white rounded-xl p-4 border border-red-200 flex flex-col justify-between shadow-sm hover:border-red-650 transition-colors">
-                  <span className="material-symbols-outlined text-red-650 text-[20px] mb-4">alarm_off</span>
+                <div className="bg-white rounded-xl p-4 border border-red-200 flex flex-col justify-between shadow-sm hover:border-red-655 transition-colors">
+                  <span className="material-symbols-outlined text-red-655 text-[20px] mb-4">alarm_off</span>
                   <div>
-                    <div className="text-2xl font-bold text-red-650">12</div>
-                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">Overdue</div>
+                    <div className="text-2xl font-bold text-red-655">{metrics.resolutionPercentage}%</div>
+                    <div className="text-[10px] text-gray-500 font-bold uppercase mt-1">Resolved Rate</div>
                   </div>
                 </div>
               </div>
@@ -1124,10 +1103,10 @@ export default function AdminDashboard({ onLogout }) {
                     className="w-full px-3 py-2 border border-[#c3c6d1] rounded-lg bg-gray-50 text-sm focus:outline-none cursor-pointer"
                   >
                     <option value="" disabled>Select District</option>
-                    <option value="Salem">Salem</option>
-                    <option value="Erode">Erode</option>
-                    <option value="Coimbatore">Coimbatore</option>
-                    <option value="Chennai">Chennai</option>
+                    <option value="23">Salem</option>
+                    <option value="8">Erode</option>
+                    <option value="4">Coimbatore</option>
+                    <option value="3">Chennai</option>
                   </select>
                 </div>
               </div>

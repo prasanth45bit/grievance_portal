@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import LoginForm from "./LoginForm";
 import RegisterForm from "./RegisterForm";
+import { api } from "../../utils/api";
 
 export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [role, setRole] = useState("citizen");
   const [formData, setFormData] = useState({
@@ -12,8 +15,8 @@ export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSucce
     aadhaar: "",
     email: "",
     phone: "",
-    state: "",
-    district: "",
+    state: "tn", // Tamil Nadu as default
+    district: "23", // Salem as default
     language: "en",
     password: "",
     username: "",
@@ -23,6 +26,7 @@ export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSucce
   useEffect(() => {
     setIsLogin(initialIsLogin);
     setRole("citizen"); // reset role on page navigate
+    setError("");
   }, [initialIsLogin]);
 
   const handleChange = (e) => {
@@ -33,36 +37,56 @@ export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSucce
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    if (isLogin) {
-      if (role === "citizen") {
-        const loginData = {
+    try {
+      if (isLogin) {
+        if (role === "citizen") {
+          const res = await api.auth.loginCitizen(formData.email, formData.password);
+          if (res.success && onLoginSuccess) {
+            onLoginSuccess("citizen");
+          }
+        } else if (role === "officer") {
+          // Officer login expects email (username) and password
+          const res = await api.auth.loginOfficer(formData.username, formData.password);
+          if (res.success && onLoginSuccess) {
+            onLoginSuccess("officer");
+          }
+        } else if (role === "admin") {
+          // Admin login expects email (username) and password
+          const res = await api.auth.loginAdmin(formData.username, formData.password);
+          if (res.success && onLoginSuccess) {
+            onLoginSuccess("admin");
+          }
+        }
+      } else {
+        // Register Citizen
+        const res = await api.auth.registerCitizen({
+          fullName: formData.fullName,
           email: formData.email,
+          phone: formData.phone,
           password: formData.password,
-        };
-        console.log("Login Citizen:", loginData);
-        if (onLoginSuccess) onLoginSuccess("citizen");
-      } else if (role === "officer") {
-        const loginData = {
-          username: formData.username,
-          department: formData.department,
-          password: formData.password,
-        };
-        console.log("Login Officer:", loginData);
-        if (onLoginSuccess) onLoginSuccess("officer");
-      } else if (role === "admin") {
-        const loginData = {
-          username: formData.username,
-          password: formData.password,
-        };
-        console.log("Login Admin:", loginData);
-        if (onLoginSuccess) onLoginSuccess("admin");
+          address: formData.address,
+          districtId: formData.district,
+          pincode: formData.pincode,
+        });
+        
+        if (res.success) {
+          // Auto-login citizen after successful registration
+          const loginRes = await api.auth.loginCitizen(formData.email, formData.password);
+          if (loginRes.success && onLoginSuccess) {
+            onLoginSuccess("citizen");
+          }
+        }
       }
-    } else {
-      console.log("Register Citizen:", formData);
-      if (onLoginSuccess) onLoginSuccess("citizen");
+    } catch (err) {
+      setError(err.message || "Authentication failed. Please check your credentials.");
+      console.error("Auth submit error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -108,6 +132,14 @@ export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSucce
 
       {/* ================= MAIN ================= */}
       <main className="flex-grow">
+        {error && (
+          <div className="max-w-md mx-auto mt-6 w-full px-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-500">error</span>
+              <span className="text-sm font-medium">{error}</span>
+            </div>
+          </div>
+        )}
         {isLogin ? (
           /* ================= LOGIN ================= */
           <div className="flex items-center justify-center px-4 py-12">
