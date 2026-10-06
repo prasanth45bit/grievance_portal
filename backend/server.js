@@ -2,8 +2,8 @@ const app = require("./app");
 const env = require("./src/config/environment");
 const { sequelize } = require("./src/models");
 const logger = require("./src/utils/logger");
-const syncDatabase = require("./src/database/sync");
-const seedDatabase = require("./src/database/seed");
+const { syncDatabase } = require("./src/database/sync");
+const { seedDatabase } = require("./src/database/seed");
 
 const startServer = async () => {
   try {
