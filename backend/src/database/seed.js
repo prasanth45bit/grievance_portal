@@ -260,9 +260,13 @@ const seedDatabase = async () => {
     logger.info("Database seeding successfully completed.");
     process.exit(0);
   } catch (error) {
-    logger.error("Failed to seed database: %s", error.stack);
-    process.exit(1);
-  }
+  logger.error("Failed to seed database");
+  logger.error(`Error name: ${error.name}`);
+  logger.error(`Error message: ${error.message}`);
+  logger.error(`SQL: ${error.sql || "N/A"}`);
+  logger.error(`Original error: ${error.original?.message || "N/A"}`);
+  throw error;
+}
 };
 
 module.exports = { seedDatabase };
