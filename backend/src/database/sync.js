@@ -6,7 +6,7 @@ const syncDatabase = async () => {
     logger.info("Initializing schema synchronization with MySQL database...");
     
     // Force true drops existing tables and builds a clean database
-    await sequelize.sync({ force: true });
+    await sequelize.sync({ force: false });
     
     logger.info("Database schema synchronized successfully. All tables created.");
     process.exit(0);
