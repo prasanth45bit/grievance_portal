@@ -1,4 +1,5 @@
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const rawBaseUrl = (process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace(/\/+$/, "");
+const BASE_URL = rawBaseUrl.endsWith("/api") ? rawBaseUrl : `${rawBaseUrl}/api`;
 
 // Helper to attach authorization header
 const getHeaders = (isMultipart = false) => {
