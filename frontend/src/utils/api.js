@@ -1,4 +1,5 @@
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const RAW_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const BASE_URL = RAW_URL.replace(/\/+$/, "");
 
 // Helper to attach authorization header
 const getHeaders = (isMultipart = false) => {
@@ -22,7 +23,74 @@ const handleResponse = async (response) => {
   return data;
 };
 
+// Helper to convert relative backend upload paths to full URL
+export const getImageUrl = (imagePath) => {
+  if (!imagePath) return "";
+  if (
+    imagePath.startsWith("http://") || 
+    imagePath.startsWith("https://") || 
+    imagePath.startsWith("data:") || 
+    imagePath.startsWith("blob:")
+  ) {
+    return imagePath;
+  }
+  const cleanPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+  const backendHost = BASE_URL.replace(/\/api\/?$/, "");
+  return `${backendHost}${cleanPath}`;
+};
+
 export const api = {
+  // Common / Catalog & Public services
+  common: {
+    getDistricts: async () => {
+      const response = await fetch(`${BASE_URL}/districts`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    getDistrictById: async (id) => {
+      const response = await fetch(`${BASE_URL}/districts/${id}`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    getDepartments: async () => {
+      const response = await fetch(`${BASE_URL}/departments`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    getDepartmentById: async (id) => {
+      const response = await fetch(`${BASE_URL}/departments/${id}`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    trackComplaint: async (ticketNumber) => {
+      const response = await fetch(`${BASE_URL}/complaints/track/${encodeURIComponent(ticketNumber)}`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    getImageUrl: (path) => getImageUrl(path),
+    analyzeImage: async (file, confidence = null) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const query = confidence ? `?confidence=${confidence}` : "";
+      const response = await fetch(`${BASE_URL}/complaints/analyze-image${query}`, {
+        method: "POST",
+        headers: getHeaders(true),
+        body: formData,
+      });
+      return handleResponse(response);
+    },
+  },
+
   // Auth services
   auth: {
     registerCitizen: async (citizenData) => {
@@ -107,6 +175,14 @@ export const api = {
       });
       return handleResponse(response);
     },
+    changePassword: async (oldPassword, newPassword) => {
+      const response = await fetch(`${BASE_URL}/citizens/change-password`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify({ oldPassword, newPassword }),
+      });
+      return handleResponse(response);
+    },
     getMyComplaints: async (page = 1, limit = 10, search = "") => {
       const query = `?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
       const response = await fetch(`${BASE_URL}/complaints/my${query}`, {
@@ -131,6 +207,14 @@ export const api = {
       });
       return handleResponse(response);
     },
+    withdrawComplaint: async (id, remarks = "") => {
+      const response = await fetch(`${BASE_URL}/complaints/${id}/withdraw`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify({ remarks }),
+      });
+      return handleResponse(response);
+    },
     submitFeedback: async (complaintId, rating, comments) => {
       const response = await fetch(`${BASE_URL}/complaints/${complaintId}/feedback`, {
         method: "POST",
@@ -143,6 +227,37 @@ export const api = {
 
   // Officer Dashboard services
   officer: {
+    getProfile: async () => {
+      const response = await fetch(`${BASE_URL}/officer/me`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    updateProfile: async (profileData) => {
+      const response = await fetch(`${BASE_URL}/officer/me`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(profileData),
+      });
+      return handleResponse(response);
+    },
+    changePassword: async (currentPassword, newPassword) => {
+      const response = await fetch(`${BASE_URL}/officer/change-password`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      return handleResponse(response);
+    },
+    toggleDutyStatus: async (status = null) => {
+      const response = await fetch(`${BASE_URL}/officer/duty-status`, {
+        method: "PATCH",
+        headers: getHeaders(),
+        body: JSON.stringify(status ? { status } : {}),
+      });
+      return handleResponse(response);
+    },
     getDashboardStats: async () => {
       const response = await fetch(`${BASE_URL}/officer/dashboard`, {
         method: "GET",
@@ -208,6 +323,29 @@ export const api = {
 
   // Admin Dashboard services
   admin: {
+    getProfile: async () => {
+      const response = await fetch(`${BASE_URL}/admin/me`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
+    updateProfile: async (profileData) => {
+      const response = await fetch(`${BASE_URL}/admin/me`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(profileData),
+      });
+      return handleResponse(response);
+    },
+    changePassword: async (currentPassword, newPassword) => {
+      const response = await fetch(`${BASE_URL}/admin/change-password`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      return handleResponse(response);
+    },
     getDashboardStats: async () => {
       const response = await fetch(`${BASE_URL}/admin/dashboard`, {
         method: "GET",
@@ -229,6 +367,21 @@ export const api = {
       });
       return handleResponse(response);
     },
+    // Alias used by AdminDashboard.jsx
+    getGrievances: async (page = 1, limit = 100, filters = {}) => {
+      let queryParams = [`page=${page}`, `limit=${limit}`];
+      Object.keys(filters).forEach((key) => {
+        if (filters[key]) {
+          queryParams.push(`${key}=${encodeURIComponent(filters[key])}`);
+        }
+      });
+      const queryStr = `?${queryParams.join("&")}`;
+      const response = await fetch(`${BASE_URL}/admin/complaints${queryStr}`, {
+        method: "GET",
+        headers: getHeaders(),
+      });
+      return handleResponse(response);
+    },
     createOfficer: async (officerData) => {
       const response = await fetch(`${BASE_URL}/admin/officers`, {
         method: "POST",
@@ -244,6 +397,10 @@ export const api = {
         }),
       });
       return handleResponse(response);
+    },
+    // Alias used by AdminDashboard.jsx
+    registerOfficer: async (officerData) => {
+      return api.admin.createOfficer(officerData);
     },
     getOfficers: async () => {
       const response = await fetch(`${BASE_URL}/admin/officers`, {

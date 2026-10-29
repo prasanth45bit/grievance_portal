@@ -1,4 +1,4 @@
-const { sequelize, Complaint, ComplaintImage, ComplaintAIAnalysis, ComplaintStatusHistory, DepartmentAdmin } = require("../models");
+const { sequelize, Complaint, ComplaintImage, ComplaintAIAnalysis, ComplaintStatusHistory, DepartmentAdmin, Department, Officer } = require("../models");
 const aiService = require("./aiService");
 const assignmentService = require("./assignmentService");
 const notificationService = require("./notificationService");
@@ -9,10 +9,9 @@ const createComplaint = async (citizenId, data, files = []) => {
   logger.info("Initializing complaint creation service for citizen: %s", citizenId);
 
   // 1. Run AI analysis outside the DB transaction to avoid locking tables
-  const fileUrls = files.map(file => `/uploads/${file.filename}`);
   let aiResults = null;
   try {
-    aiResults = await aiService.predictGrievance(data.description, fileUrls);
+    aiResults = await aiService.predictGrievance(data.description, files);
   } catch (error) {
     logger.error("AI service prediction failed: %s. Using fallback prediction.", error.message);
     aiResults = {
@@ -157,7 +156,17 @@ const createComplaint = async (citizenId, data, files = []) => {
     // Commit Transaction
     await tx.commit();
     logger.info("Complaint %s registered and committed successfully.", ticketNumber);
-    return complaint;
+
+    const fullComplaint = await Complaint.findByPk(complaint.complaint_id, {
+      include: [
+        { model: Department, as: "department" },
+        { model: Officer, as: "officer" },
+        { model: ComplaintAIAnalysis, as: "ai_analysis" },
+        { model: ComplaintImage, as: "images" },
+      ],
+    });
+
+    return fullComplaint || complaint;
   } catch (error) {
     // Rollback on any failure
     await tx.rollback();

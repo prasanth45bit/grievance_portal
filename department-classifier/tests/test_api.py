@@ -1,101 +1,64 @@
-# pyrefly: ignore [missing-import]
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
-from fastapi import status
-from app.api import app, get_classifier
-from app.predict import DepartmentClassifier
+from app.api import app
 
-client = TestClient(app)
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as test_client:
+        yield test_client
 
-@pytest.fixture
-def mock_classifier():
-    clf = MagicMock(spec=DepartmentClassifier)
-    # Define mock response for single prediction
-    clf.predict.return_value = {
-        "department_id": 1,
-        "department_name": "Water Supply",
-        "confidence": 0.98,
-        "is_confident": True,
-        "top_departments": [
-            {"rank": 1, "department_id": 1, "department_name": "Water Supply", "confidence": 0.98}
-        ]
-    }
-    # Mock label encoder structure for health check
-    clf.label_encoder = MagicMock()
-    clf.label_encoder.idx_to_name = {1: "Water Supply"}
-    
-    # Mock ONNX model path for health check
-    clf.onnx_model_path = MagicMock()
-    clf.onnx_model_path.exists.return_value = True
-    return clf
-
-def test_health_endpoint_healthy(mock_classifier):
-    """Test health check endpoint when classifier loads successfully."""
-    # Patch get_classifier dependency
-    app.dependency_overrides[get_classifier] = lambda: mock_classifier
-    
+def test_health_endpoint(client):
     response = client.get("/health")
-    app.dependency_overrides.clear()
-    
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json()["status"] == "healthy"
-
-def test_health_endpoint_degraded():
-    """Test health check endpoint when classifier loading fails (missing model)."""
-    # Force get_classifier to raise 503 HTTP exception
-    from fastapi import HTTPException
-    def mock_raise():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model files not found"
-        )
-    app.dependency_overrides[get_classifier] = mock_raise
-    
-    response = client.get("/health")
-    app.dependency_overrides.clear()
-    
-    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-    assert "Model files not found" in response.json()["detail"]
-
-def test_predict_single_endpoint_success(mock_classifier):
-    """Test standard single prediction post request."""
-    app.dependency_overrides[get_classifier] = lambda: mock_classifier
-    
-    payload = {"complaint": "Water pipeline is leaking near my house"}
-    response = client.post("/predict", json=payload)
-    app.dependency_overrides.clear()
-    
-    assert response.status_code == status.HTTP_200_OK
+    assert response.status_code == 200
     data = response.json()
-    assert data["department_id"] == 1
-    assert data["department_name"] == "Water Supply"
-    assert data["confidence"] == 0.98
+    assert data["status"] == "healthy"
+    assert data["model_loaded"] is True
+    assert data["department_count"] == 12
 
-def test_predict_single_endpoint_empty_error(mock_classifier):
-    """Test validation on empty input complaint."""
-    app.dependency_overrides[get_classifier] = lambda: mock_classifier
-    
-    payload = {"complaint": "   "}
-    response = client.post("/predict", json=payload)
-    app.dependency_overrides.clear()
-    
-    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-
-def test_predict_batch_endpoint_success(mock_classifier):
-    """Test batch prediction list request."""
-    app.dependency_overrides[get_classifier] = lambda: mock_classifier
-    
-    payload = {
-        "complaints": [
-            "Water is leaking",
-            "Electricity is down"
-        ]
-    }
-    response = client.post("/predict/batch", json=payload)
-    app.dependency_overrides.clear()
-    
-    assert response.status_code == status.HTTP_200_OK
+def test_departments_endpoint(client):
+    response = client.get("/departments")
+    assert response.status_code == 200
     data = response.json()
-    assert len(data) == 2
-    assert data[0]["department_name"] == "Water Supply"
+    assert data["total"] == 12
+    assert len(data["departments"]) == 12
+    dept_names = [d["name"] for d in data["departments"]]
+    assert "Roads and Highways" in dept_names
+    assert "Water Supply" in dept_names
+
+def test_predict_single_endpoint(client):
+    response = client.post(
+        "/predict",
+        json={
+            "complaint": "There are big potholes on the road near my home.",
+            "top_k": 3
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["predicted_department"] == "Roads and Highways"
+    assert data["confidence"] > 0.8
+    assert len(data["top_predictions"]) == 3
+
+def test_predict_batch_endpoint(client):
+    response = client.post(
+        "/predict/batch",
+        json={
+            "complaints": [
+                "Water supply is contaminated and dirty in our colony.",
+                "Street lights are not working on main junction."
+            ],
+            "top_k": 2
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["total"] == 2
+    assert len(data["predictions"]) == 2
+    assert data["predictions"][0]["predicted_department"] == "Water Supply"
+    assert data["predictions"][1]["predicted_department"] == "Street Lighting"
+
+def test_predict_empty_validation(client):
+    response = client.post("/predict", json={"complaint": "ab"})
+    assert response.status_code == 422

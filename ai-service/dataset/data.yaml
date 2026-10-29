@@ -1,0 +1,23 @@
+# YOLOv8 Dataset Configuration for Civic Issue Detection
+path: ../dataset # dataset root dir
+train: images/train # train images (relative to 'path')
+val: images/val # val images (relative to 'path')
+test: images/test # test images (optional)
+
+# Number of classes
+nc: 12
+
+# Class names corresponding to detectable visual civic issues
+names:
+  0: pothole
+  1: damaged_road
+  2: garbage
+  3: overflowing_garbage
+  4: water_leakage
+  5: sewage_overflow
+  6: open_manhole
+  7: damaged_electric_pole
+  8: damaged_power_line
+  9: damaged_streetlight
+  10: stray_animal
+  11: damaged_park_equipment

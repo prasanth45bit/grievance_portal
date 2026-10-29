@@ -5,14 +5,26 @@ import Auth from './components/Auth/Auth';
 import CitizenDashboard from './components/Dashboard/CitizenDashboard';
 import OfficerDashboard from './components/Dashboard/OfficerDashboard';
 import AdminDashboard from './components/Dashboard/AdminDashboard';
+import { api } from './utils/api';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('landing'); // 'landing', 'login', 'register', 'dashboard'
-  const [userRole, setUserRole] = useState('citizen'); // 'citizen', 'officer', 'admin'
+  const [currentPage, setCurrentPage] = useState(() => {
+    const token = localStorage.getItem('token');
+    return token ? 'dashboard' : 'landing';
+  });
+  const [userRole, setUserRole] = useState(() => {
+    return localStorage.getItem('role') || 'citizen';
+  });
 
   const handleLoginSuccess = (role) => {
     setUserRole(role);
     setCurrentPage('dashboard');
+  };
+
+  const handleLogout = () => {
+    api.auth.logout();
+    setUserRole('citizen');
+    setCurrentPage('landing');
   };
 
   return (
@@ -39,26 +51,11 @@ function App() {
       )}
       {currentPage === 'dashboard' && (
         userRole === 'officer' ? (
-          <OfficerDashboard 
-            onLogout={() => {
-              setUserRole('citizen');
-              setCurrentPage('landing');
-            }} 
-          />
+          <OfficerDashboard onLogout={handleLogout} />
         ) : userRole === 'admin' ? (
-          <AdminDashboard 
-            onLogout={() => {
-              setUserRole('citizen');
-              setCurrentPage('landing');
-            }} 
-          />
+          <AdminDashboard onLogout={handleLogout} />
         ) : (
-          <CitizenDashboard 
-            onLogout={() => {
-              setUserRole('citizen');
-              setCurrentPage('landing');
-            }} 
-          />
+          <CitizenDashboard onLogout={handleLogout} />
         )
       )}
     </>

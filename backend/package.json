@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "migrate": "node src/database/sync.js",
     "seed": "node src/database/seed.js",
-    "test": "node tests/runTests.js"
+    "test": "node tests/runTests.js && node tests/testAIService.js && node tests/testFrontendAPIs.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

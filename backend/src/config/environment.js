@@ -19,5 +19,6 @@ module.exports = {
     EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1d",
   },
   UPLOAD_DIR: process.env.UPLOAD_DIR || "uploads",
-  AI_SERVICE_URL: process.env.AI_SERVICE_URL || "http://localhost:8000"
+  AI_SERVICE_URL: process.env.AI_SERVICE_URL || "http://localhost:8000",
+  IMAGE_SERVICE_URL: process.env.IMAGE_SERVICE_URL || "http://localhost:8001"
 };

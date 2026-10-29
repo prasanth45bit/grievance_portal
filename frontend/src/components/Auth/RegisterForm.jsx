@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "../../utils/api";
 
 export default function RegisterForm({
   formData,
@@ -6,6 +7,21 @@ export default function RegisterForm({
   handleSubmit,
   handleCancel,
 }) {
+  const [districts, setDistricts] = useState([]);
+
+  useEffect(() => {
+    const loadDistricts = async () => {
+      try {
+        const res = await api.common.getDistricts();
+        if (res.success && res.data && res.data.length > 0) {
+          setDistricts(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load registration districts:", err);
+      }
+    };
+    loadDistricts();
+  }, []);
   return (
     <div className="bg-white rounded-xl shadow-md p-6 md:p-8 border border-gray-300">
       <div className="mb-8">
@@ -140,16 +156,14 @@ export default function RegisterForm({
                   value={formData.district || ""}
                   onChange={handleChange}
                   required
-                  className="form-input appearance-none pr-10"
+                  className="form-input appearance-none pr-10 cursor-pointer"
                 >
-                  <option value="">Select District</option>
-                  <option value="3">Chennai</option>
-                  <option value="4">Coimbatore</option>
-                  <option value="8">Erode</option>
-                  <option value="23">Salem</option>
-                  <option value="29">Tiruchirappalli</option>
-                  <option value="32">Tiruppur</option>
-                  <option value="14">Madurai</option>
+                  <option value="">Select District ({districts.length > 0 ? `${districts.length} Districts` : "Loading..."})</option>
+                  {districts.map((d) => (
+                    <option key={d.district_id} value={d.district_id}>
+                      {d.district_name}
+                    </option>
+                  ))}
                 </select>
                 <span className="select-icon material-symbols-outlined">
                   expand_more

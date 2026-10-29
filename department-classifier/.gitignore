@@ -1,23 +1,56 @@
-# Python cache
+# Python cache & bytecode
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
 .pytest_cache/
+.coverage
+htmlcov/
 
 # Environments
 .venv/
 venv/
 ENV/
 env/
+.env
+*.env
+!.env.example
 
-# ML models and outputs
+# Large ML models, weights, checkpoints, and optimizer states (>100MB exceeds GitHub limits)
+grievance-bert-model/*.safetensors
+grievance-bert-model/*.pt
+grievance-bert-model/*.pth
+grievance-bert-model/*.bin
+grievance-bert-model/optimizer.pt
+grievance-bert-model/scheduler.pt
+grievance-bert-model/rng_state.pth
+grievance-bert-model/training_args.bin
+grievance-bert-model/trainer_state.json
+grievance-bert-model/checkpoint-*/
 model/
 runs/
 checkpoint-*/
 *.onnx
+*.safetensors
+*.pt
+*.pth
+*.bin
 
-# System & IDE
+# Whitelist small model metadata and tokenizer configs (<1MB)
+!grievance-bert-model/config.json
+!grievance-bert-model/label_mapping.json
+!grievance-bert-model/special_tokens_map.json
+!grievance-bert-model/tokenizer.json
+!grievance-bert-model/tokenizer_config.json
+!grievance-bert-model/vocab.txt
+
+# System, IDE, logs & cache
 .idea/
 .vscode/
 .DS_Store
+Thumbs.db
 *.log
+logs/
+.cache/
+

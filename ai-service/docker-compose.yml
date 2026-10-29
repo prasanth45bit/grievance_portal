@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  civic-vision-service:
+    build: .
+    container_name: civic_vision_service
+    ports:
+      - "8001:8001"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8001
+      - CONFIDENCE_THRESHOLD=0.35
+      - ENABLE_OCR=true
+    volumes:
+      - ./models:/app/models
+    restart: unless-stopped

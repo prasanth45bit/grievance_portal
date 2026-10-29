@@ -1,0 +1,47 @@
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+.env
+*.env
+!.env.example
+
+# PyTorch / Ultralytics YOLO / ML Model weights & checkpoints (>100MB exceeds GitHub limits)
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.weights
+*.h5
+*.tflite
+runs/
+checkpoint-*/
+yolov8*.pt
+
+# Whitelist documentation & configuration templates
+!models/README.md
+!dataset/README.md
+!dataset/data.yaml
+
+# System, IDE, logs & cache
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+logs/
+.cache/
+models/.cache/
+

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../utils/api";
+import AIVisionResults from "../common/AIVisionResults";
 
-export default function OfficerComplaints({ searchVal }) {
+export default function OfficerComplaints({ searchVal, officerProfile }) {
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [priorityFilter, setPriorityFilter] = useState("All Priorities");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [departments, setDepartments] = useState([]);
 
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [actionComments, setActionComments] = useState("");
@@ -13,6 +15,23 @@ export default function OfficerComplaints({ searchVal }) {
   
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const officerDistrict = officerProfile?.district?.district_name || "Assigned";
+  const officerDept = officerProfile?.department?.department_name || "Highways";
+
+  useEffect(() => {
+    const loadDepts = async () => {
+      try {
+        const res = await api.common.getDepartments();
+        if (res.success && res.data) {
+          setDepartments(res.data);
+        }
+      } catch (err) {
+        console.warn("Failed to load departments:", err);
+      }
+    };
+    loadDepts();
+  }, []);
 
   const fetchTickets = async () => {
     setLoading(true);
@@ -33,6 +52,9 @@ export default function OfficerComplaints({ searchVal }) {
           coordinates: `${item.latitude}° N, ${item.longitude}° E`,
           description: item.description,
           evidenceFile: item.images && item.images.length ? item.images[0].file_name : "No Attachments",
+          images: item.images || [],
+          ai_analysis: item.ai_analysis || null,
+          raw: item,
           logs: item.status_history || []
         }));
         setTickets(mapped);
@@ -48,9 +70,28 @@ export default function OfficerComplaints({ searchVal }) {
     fetchTickets();
   }, [toastMessage]);
 
-  // Handle Export button
+  // Handle Export button with real CSV download
   const handleExport = () => {
-    setToastMessage("Salem district highway grievances exported successfully to CSV.");
+    const headers = ["Ticket ID", "Title", "Category", "Priority", "Status", "Created Date", "Location"];
+    const rows = filteredTickets.map(t => [
+      `"${t.id}"`,
+      `"${(t.title || "").replace(/"/g, '""')}"`,
+      `"${t.category}"`,
+      `"${t.priority}"`,
+      `"${t.status}"`,
+      `"${t.createdDate}"`,
+      `"${(t.location || "").replace(/"/g, '""')}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${officerDistrict}_district_grievances_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setToastMessage(`${officerDistrict} district grievances exported successfully to CSV.`);
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
@@ -165,7 +206,7 @@ export default function OfficerComplaints({ searchVal }) {
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5 font-semibold">
-                Highways Department | District Salem Console
+                {officerDept} Department | District {officerDistrict} Console
               </p>
             </div>
           </div>
@@ -274,36 +315,34 @@ export default function OfficerComplaints({ searchVal }) {
             </div>
 
             {/* Attachments Section */}
-            <div>
-              <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[18px]">
                   attachment
                 </span>
-                Citizen Uploaded Evidence
+                Citizen Uploaded Evidence &amp; AI Detection
               </h4>
-              <div className="flex items-center gap-3 p-3 border border-[#c3c6d1] rounded-lg bg-gray-50 w-full sm:w-80">
-                <span className="material-symbols-outlined text-[#001e40] text-3xl">
-                  image
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-gray-800 truncate">
-                    {selectedTicket.evidenceFile}
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-semibold">
-                    JPEG Image • 2.4 MB
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => console.log("Evidence download clicked")}
-                  className="p-1.5 hover:bg-gray-200 rounded-full text-gray-600"
-                  title="Download File"
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    download
+              {selectedTicket.images && selectedTicket.images.length > 0 ? (
+                <AIVisionResults
+                  imageSrc={selectedTicket.images[0].image_url}
+                  analysisData={selectedTicket.ai_analysis}
+                  title="Field Evidence &amp; Computer Vision Inspection"
+                />
+              ) : (
+                <div className="flex items-center gap-3 p-3 border border-[#c3c6d1] rounded-lg bg-gray-50 w-full sm:w-80">
+                  <span className="material-symbols-outlined text-[#001e40] text-3xl">
+                    image_not_supported
                   </span>
-                </button>
-              </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-800">
+                      {selectedTicket.evidenceFile}
+                    </p>
+                    <p className="text-[10px] text-gray-400 font-semibold">
+                      No photographic file attached
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -440,7 +479,7 @@ export default function OfficerComplaints({ searchVal }) {
             <span className="material-symbols-outlined text-[18px]">
               location_on
             </span>
-            <span>Highways Department | Salem District</span>
+            <span>{officerDept} Department | {officerDistrict} District</span>
           </div>
         </div>
 
@@ -512,10 +551,19 @@ export default function OfficerComplaints({ searchVal }) {
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="w-full bg-gray-50 border border-[#c3c6d1] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#001e40] focus:border-[#001e40] outline-none"
             >
-              <option>All Categories</option>
-              <option>Road Repair</option>
-              <option>Bridge/Culvert</option>
-              <option>Signage</option>
+              <option value="All Categories">All Categories</option>
+              {departments.length > 0 ? (
+                departments.map(d => (
+                  <option key={d.department_id} value={d.department_name}>{d.department_name}</option>
+                ))
+              ) : (
+                <>
+                  <option>Roads and Highways</option>
+                  <option>Water Supply</option>
+                  <option>Sanitation</option>
+                  <option>Electricity</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -612,7 +660,7 @@ export default function OfficerComplaints({ searchVal }) {
               ) : (
                 <tr>
                   <td colSpan="8" className="text-center py-10 text-gray-400">
-                    No Salem highway grievances found matching search queries or filters.
+                    No {officerDistrict} grievances found matching search queries or filters.
                   </td>
                 </tr>
               )}

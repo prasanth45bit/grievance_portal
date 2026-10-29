@@ -3,6 +3,7 @@ import OfficerComplaints from "./OfficerComplaints";
 import OfficerNotifications from "./OfficerNotifications";
 import OfficerSettings from "./OfficerSettings";
 import OfficerProfile from "./OfficerProfile";
+import AIVisionResults from "../common/AIVisionResults";
 import { api } from "../../utils/api";
 
 export default function OfficerDashboard({ onLogout }) {
@@ -23,7 +24,10 @@ export default function OfficerDashboard({ onLogout }) {
     overdue: 0,
   });
 
-  // Salem High Priority Complaints List
+  // Dynamic Officer Profile
+  const [officerProfile, setOfficerProfile] = useState(null);
+
+  // High Priority Complaints List
   const [complaints, setComplaints] = useState([]);
 
   // Timeline logs
@@ -41,6 +45,16 @@ export default function OfficerDashboard({ onLogout }) {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      // Fetch officer profile
+      try {
+        const profRes = await api.officer.getProfile();
+        if (profRes.success && profRes.data) {
+          setOfficerProfile(profRes.data);
+        }
+      } catch (e) {
+        console.warn("Could not load officer profile:", e);
+      }
+
       // Fetch stats
       const statsRes = await api.officer.getDashboardStats();
       if (statsRes.success && statsRes.data) {
@@ -68,6 +82,8 @@ export default function OfficerDashboard({ onLogout }) {
             statusColor: item.status === "ESCALATED" ? "text-error" : "text-secondary",
             statusIcon: item.status === "ESCALATED" ? "schedule" : "timer",
             status: item.status,
+            images: item.images || [],
+            ai_analysis: item.ai_analysis || null,
             logs: item.status_history || []
           }));
         setComplaints(highPriority);
@@ -296,7 +312,7 @@ export default function OfficerDashboard({ onLogout }) {
                   <span className="material-symbols-outlined text-green-700">
                     check_circle
                   </span>
-                  Officer action submitted and recorded in Salem highway logs.
+                  Officer action submitted and recorded in {officerProfile?.district?.district_name || "district"} department logs.
                 </div>
               )}
 
@@ -305,18 +321,18 @@ export default function OfficerDashboard({ onLogout }) {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 opacity-30 rounded-bl-full -z-10" />
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-[#001e40]">Ramesh Kumar</h2>
+                    <h2 className="text-2xl font-bold text-[#001e40]">{officerProfile?.full_name || "Nodal Officer"}</h2>
                     <p className="text-sm text-gray-500 mt-1">
-                      District Officer{" "}
-                      <span className="text-gray-300 mx-1">|</span> Highways Department{" "}
-                      <span className="text-gray-300 mx-1">|</span> Salem District
+                      {officerProfile?.designation || "District Officer"}{" "}
+                      <span className="text-gray-300 mx-1">|</span> {officerProfile?.department?.department_name || "Highways"} Department{" "}
+                      <span className="text-gray-300 mx-1">|</span> {officerProfile?.district?.district_name || "Assigned"} District
                     </p>
                   </div>
                   <div className="bg-[#ffdcc2] text-[#2e1500] px-4 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold border border-orange-200 shadow-sm">
                     <span className="material-symbols-outlined text-[16px]">
                       visibility
                     </span>
-                    Viewing Salem District Only
+                    Viewing {officerProfile?.district?.district_name || "Assigned"} District Only
                   </div>
                 </div>
               </section>
@@ -402,7 +418,7 @@ export default function OfficerDashboard({ onLogout }) {
                       <span className="material-symbols-outlined text-[20px]">
                         priority_high
                       </span>
-                      High Priority Complaints - Salem
+                      High Priority Complaints - {officerProfile?.district?.district_name || "Assigned Jurisdiction"}
                     </h3>
                     <span className="text-xs font-semibold text-gray-500">
                       {filteredComplaints.length} Action Items
@@ -488,9 +504,10 @@ export default function OfficerDashboard({ onLogout }) {
               </div>
             </>
           ) : activeView === "complaints" ? (
-            <OfficerComplaints searchVal={searchVal} />
+            <OfficerComplaints searchVal={searchVal} officerProfile={officerProfile} />
           ) : activeView === "notifications" ? (
             <OfficerNotifications
+              officerProfile={officerProfile}
               onNavigateToComplaint={(id) => {
                 setActiveView("complaints");
                 setSearchVal(id);
@@ -532,6 +549,17 @@ export default function OfficerDashboard({ onLogout }) {
                   {selectedComplaint.title}
                 </p>
               </div>
+
+              {selectedComplaint.images && selectedComplaint.images.length > 0 && (
+                <div className="pt-1">
+                  <AIVisionResults
+                    imageSrc={selectedComplaint.images[0].image_url}
+                    analysisData={selectedComplaint.ai_analysis}
+                    compact={true}
+                    title="Civic Vision Defect Analysis"
+                  />
+                </div>
+              )}
 
               <div>
                 <label

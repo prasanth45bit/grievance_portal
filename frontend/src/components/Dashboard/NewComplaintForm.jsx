@@ -1,15 +1,24 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import Step from "./Step";
 import { api } from "../../utils/api";
+import AIVisionResults from "../common/AIVisionResults";
 
-export default function NewComplaintForm({ onBackToDashboard }) {
+export default function NewComplaintForm({
+  onBackToDashboard,
+  initialFile = null,
+  initialAnalysis = null,
+}) {
   const [step, setStep] = useState(2);
   const [language, setLanguage] = useState("English");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
-  const [districtId, setDistrictId] = useState("23"); // Salem as default
-  const [file, setFile] = useState(null);
+  const [districtId, setDistrictId] = useState("");
+  const [districts, setDistricts] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [file, setFile] = useState(initialFile);
+  const [imageAnalysis, setImageAnalysis] = useState(initialAnalysis);
+  const [analyzingImage, setAnalyzingImage] = useState(false);
   const [recording, setRecording] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,13 +27,38 @@ export default function NewComplaintForm({ onBackToDashboard }) {
 
   const fileInputRef = useRef(null);
 
-  const categories = [
-    "Roads & Infrastructure",
-    "Water Supply",
-    "Electricity",
-    "Sanitation",
-    "Drainage & Sewerage",
-  ];
+  useEffect(() => {
+    const loadCatalog = async () => {
+      try {
+        const [distRes, deptRes] = await Promise.all([
+          api.common.getDistricts(),
+          api.common.getDepartments()
+        ]);
+        if (distRes.success && distRes.data && distRes.data.length > 0) {
+          setDistricts(distRes.data);
+          setDistrictId(prev => prev || distRes.data[0].district_id.toString());
+        }
+        if (deptRes.success && deptRes.data && deptRes.data.length > 0) {
+          setDepartments(deptRes.data);
+        }
+      } catch (err) {
+        console.error("Failed to load catalog data:", err);
+      }
+    };
+    loadCatalog();
+  }, []);
+
+  const categories = departments.length > 0 
+    ? departments.map(d => d.department_name)
+    : [
+        "Roads and Highways",
+        "Water Supply",
+        "Electricity",
+        "Sanitation",
+        "Drainage and Sewerage",
+        "Municipal Administration",
+        "Public Health"
+      ];
 
   const getSuggestedCategory = () => {
     const text = `${title} ${description}`.toLowerCase();
@@ -94,6 +128,35 @@ export default function NewComplaintForm({ onBackToDashboard }) {
     }
 
     setFile(selectedFile);
+    setImageAnalysis(null);
+    setAnalyzingImage(true);
+
+    api.common
+      .analyzeImage(selectedFile)
+      .then((res) => {
+        if (res.success && res.data) {
+          setImageAnalysis(res.data);
+          if (res.data.primary_department) {
+            setCategory(res.data.primary_department);
+          } else if (res.data.suggested_department) {
+            setCategory(res.data.suggested_department);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("Live visual pre-inspection notice:", err.message);
+      })
+      .finally(() => {
+        setAnalyzingImage(false);
+      });
+  };
+
+  const handleApplyAIRecommendation = (rec) => {
+    if (rec.title && !title) setTitle(rec.title);
+    if (rec.category) setCategory(rec.category);
+    if (rec.description) {
+      setDescription((prev) => (prev ? `${prev}\n\n${rec.description}` : rec.description));
+    }
   };
 
   const handleVoiceToText = () => {
@@ -390,12 +453,13 @@ export default function NewComplaintForm({ onBackToDashboard }) {
                     <select
                       value={districtId}
                       onChange={(e) => setDistrictId(e.target.value)}
-                      className="p-3 bg-[#f4f3f8] border border-[#c3c6d1] rounded-lg w-full font-semibold"
+                      className="p-3 bg-[#f4f3f8] border border-[#c3c6d1] rounded-lg w-full font-semibold cursor-pointer"
                     >
-                      <option value="23">Salem District (Tamil Nadu)</option>
-                      <option value="8">Erode District (Tamil Nadu)</option>
-                      <option value="3">Chennai District (Tamil Nadu)</option>
-                      <option value="4">Coimbatore District (Tamil Nadu)</option>
+                      {districts.map((d) => (
+                        <option key={d.district_id} value={d.district_id}>
+                          {d.district_name} District ({d.state_name})
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -479,9 +543,27 @@ export default function NewComplaintForm({ onBackToDashboard }) {
                       <span className="material-symbols-outlined text-[16px]">
                         psychology
                       </span>
-                      AI-OCR Active
+                      AI Computer Vision Active
                     </div>
                   </button>
+
+                  {analyzingImage && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs font-semibold text-blue-800 flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      YOLO Vision model is analyzing the uploaded image in real-time...
+                    </div>
+                  )}
+
+                  {file && (
+                    <div className="mt-4">
+                      <AIVisionResults
+                        imageSrc={file}
+                        analysisData={imageAnalysis}
+                        onApplyRecommendation={handleApplyAIRecommendation}
+                        title="AI Computer Vision Pre-Inspection"
+                      />
+                    </div>
+                  )}
                 </div>
               </form>
             </section>
@@ -549,6 +631,16 @@ export default function NewComplaintForm({ onBackToDashboard }) {
                 </span>
               </div>
             </div>
+
+            {result?.images && result.images.length > 0 && (
+              <div className="text-left mt-6">
+                <AIVisionResults
+                  imageSrc={result.images[0].image_url}
+                  analysisData={result.ai_analysis}
+                  title="Registered AI Vision Inspection Evidence"
+                />
+              </div>
+            )}
             
             <button
               onClick={handleBackToDashboardLocal}

@@ -2,15 +2,32 @@ const { body } = require("express-validator");
 
 const createComplaintValidator = [
   body("title")
-    .trim()
-    .notEmpty()
-    .withMessage("Complaint title is required")
-    .isLength({ max: 200 })
-    .withMessage("Title cannot exceed 200 characters"),
+    .custom((val, { req }) => {
+      const hasImages = req.files && req.files.length > 0;
+      if (!val || !val.trim()) {
+        if (hasImages) {
+          req.body.title = "Civic Issue Image Report";
+          return true;
+        }
+        throw new Error("Complaint title is required");
+      }
+      if (val.length > 200) {
+        throw new Error("Title cannot exceed 200 characters");
+      }
+      return true;
+    }),
   body("description")
-    .trim()
-    .notEmpty()
-    .withMessage("Detailed description is required"),
+    .custom((val, { req }) => {
+      const hasImages = req.files && req.files.length > 0;
+      if (!val || !val.trim()) {
+        if (hasImages) {
+          req.body.description = "Civic issue submitted via photograph attachment.";
+          return true;
+        }
+        throw new Error("Detailed description is required");
+      }
+      return true;
+    }),
   body("address")
     .trim()
     .notEmpty()

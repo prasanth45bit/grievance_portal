@@ -10,6 +10,11 @@ const router = express.Router();
 router.use(requireAuth);
 router.use(requireRole("DEPARTMENT_ADMIN"));
 
+// Profile and Settings
+router.get("/me", adminController.getProfile);
+router.put("/me", adminController.updateProfile);
+router.put("/change-password", adminController.changePassword);
+
 // Dashboard Stats
 router.get("/dashboard", adminController.getDashboardStats);
 

@@ -1,63 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "../../utils/api";
 
-export default function OfficerNotifications({ onNavigateToComplaint }) {
+export default function OfficerNotifications({ onNavigateToComplaint, officerProfile }) {
   const [selectedFilter, setSelectedFilter] = useState("All");
+  const [notifs, setNotifs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [notifs, setNotifs] = useState([
-    {
-      id: "notif-1",
-      ticketId: "#GRV-2026-001502",
-      type: "New Assignment",
-      time: "5 mins ago",
-      text: "New Grievance #GRV-2026-001502 assigned: Pothole on Mettur Road.",
-      isUnread: true,
-      category: "New Assignments",
-      icon: "assignment_add",
-      bgClass: "bg-[#ffdcc2] text-[#2e1500]",
-      borderClass: "border-l-4 border-l-secondary-container"
-    },
-    {
-      id: "notif-2",
-      ticketId: "#GRV-2026-001245",
-      type: "SLA Warning",
-      time: "2 hours ago",
-      text: "SLA Deadline approaching: #GRV-2026-001245 (Bridge expansion joint) is due in 4 hours.",
-      isUnread: true,
-      category: "SLA Warnings",
-      icon: "warning",
-      bgClass: "bg-red-100 text-red-700",
-      borderClass: "border-l-4 border-l-error"
-    },
-    {
-      id: "notif-3",
-      ticketId: "#GRV-2026-001248",
-      type: "Overdue Alert",
-      time: "1 day ago",
-      text: "Overdue: #GRV-2026-001248 (Drainage blockage) is 2 days past deadline.",
-      isUnread: false,
-      category: "SLA Warnings",
-      icon: "error",
-      bgClass: "bg-gray-200 text-gray-700",
-      borderClass: "border border-outline-variant"
-    },
-    {
-      id: "notif-4",
-      ticketId: "#GRV-2026-001245",
-      type: "Citizen Update",
-      time: "1 day ago",
-      text: "Citizen Ramesh S. added a new image to #GRV-2026-001245.",
-      isUnread: true,
-      category: "Citizen Update",
-      icon: "forum",
-      bgClass: "bg-blue-100 text-blue-800",
-      borderClass: "border-l-4 border-l-primary",
-      hasImage: true,
-      imageSrc: "https://lh3.googleusercontent.com/aida-public/AB6AXuBEbgYEWuL7sOorStPCfC-C2v4Q8y2nsR_diG6_Bfaa35q-8exlagpuvurEDt1KThQIoBMEU_v3PqbYzs3C6TQV2flsoWJw1PGbc6I7jOmQJR-qw0jPx19hzpfZjIk0r00A-2E8E1VzU8OD0r_tPnnZQ4dNkeqeayHfTvqRPA5SJGQtJS6tcTybw4EwsPc9416YRUCLnGs5PhDOO3RTQJukav0SOrRD8GVL5B91meMtAmJc0LqTEXcrUw",
-      quote: "\"Attached the latest picture as requested. The gap seems to have widened since yesterday's rain.\""
+  const loadNotifications = async () => {
+    setLoading(true);
+    try {
+      const res = await api.notifications.getNotifications();
+      if (res.success && res.data && res.data.length > 0) {
+        const mapped = res.data.map((n) => ({
+          id: n.notification_id,
+          ticketId: n.complaint_id ? `#GRV-${n.complaint_id}` : "#SYS",
+          type: n.title,
+          time: new Date(n.created_at).toLocaleDateString([], { month: "short", day: "numeric" }),
+          text: n.message,
+          isUnread: !n.is_read,
+          category: n.title?.includes("Assignment") ? "New Assignments" : "SLA Warnings",
+          icon: n.title?.includes("Assignment") ? "assignment_add" : "notifications",
+          bgClass: !n.is_read ? "bg-[#ffdcc2] text-[#2e1500]" : "bg-gray-100 text-gray-700",
+          borderClass: !n.is_read ? "border-l-4 border-l-[#fe9832]" : "border border-gray-200",
+        }));
+        setNotifs(mapped);
+      } else {
+        setNotifs([]);
+      }
+    } catch (err) {
+      console.warn("Failed to load notifications from backend:", err);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
-  const handleMarkAsRead = (id) => {
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await api.notifications.markAsRead(id);
+    } catch (e) {
+      // ignore
+    }
     setNotifs((prev) =>
       prev.map((n) => {
         if (n.id === id) {
@@ -95,7 +81,7 @@ export default function OfficerNotifications({ onNavigateToComplaint }) {
           </div>
           <p className="text-sm text-gray-500 font-semibold flex items-center gap-1.5">
             <span className="material-symbols-outlined text-sm">badge</span>
-            Highways Department | Salem District
+            {officerProfile?.department?.department_name || "Highways"} Department | {officerProfile?.district?.district_name || "Assigned"} District
           </p>
         </div>
 

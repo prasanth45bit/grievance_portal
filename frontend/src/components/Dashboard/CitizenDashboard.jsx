@@ -7,14 +7,17 @@ import GrievanceHistory from "./GrievanceHistory";
 import GrievanceTracking from "./GrievanceTracking";
 import AccountSettings from "./AccountSettings";
 import NotificationCenter from "./NotificationCenter";
+import CivicVisionInspector from "./CivicVisionInspector";
+import AIVisionResults from "../common/AIVisionResults";
 import { api } from "../../utils/api";
 
 export default function CitizenDashboard({ onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedComplaint, setSelectedComplaint] = useState(null);
-  const [activeView, setActiveView] = useState("dashboard"); // "dashboard", "new-complaint", "profile", "history", "track", "settings", "notifications"
+  const [activeView, setActiveView] = useState("dashboard"); // "dashboard", "civic-scanner", "new-complaint", "profile", "history", "track", "settings", "notifications"
   const [complaintsList, setComplaintsList] = useState([]);
+  const [initialComplaintData, setInitialComplaintData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({ total: 0, pending: 0, resolved: 0, escalated: 0 });
 
@@ -55,6 +58,7 @@ export default function CitizenDashboard({ onLogout }) {
 
   const navItems = [
     { label: "Dashboard", icon: "dashboard", active: activeView === "dashboard" },
+    { label: "AI Civic Scanner", icon: "document_scanner", active: activeView === "civic-scanner" },
     { label: "New Complaint", icon: "add_box", active: activeView === "new-complaint" },
     { label: "History", icon: "history", active: activeView === "history" },
     { label: "Track", icon: "location_on", active: activeView === "track" },
@@ -66,6 +70,8 @@ export default function CitizenDashboard({ onLogout }) {
   const handleNavItemClick = (label) => {
     if (label === "Dashboard") {
       setActiveView("dashboard");
+    } else if (label === "AI Civic Scanner") {
+      setActiveView("civic-scanner");
     } else if (label === "New Complaint") {
       setActiveView("new-complaint");
     } else if (label === "Profile") {
@@ -172,6 +178,35 @@ export default function CitizenDashboard({ onLogout }) {
                 </div>
               </div>
 
+              {/* ================= AI CIVIC SCANNER PROMO BANNER ================= */}
+              <div className="bg-gradient-to-r from-[#001e40] via-[#003366] to-[#0d529c] rounded-xl p-6 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0 border border-white/20">
+                    <span className="material-symbols-outlined text-3xl text-blue-300">
+                      document_scanner
+                    </span>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h4 className="text-base font-bold">AI Civic Vision Scanner Active</h4>
+                      <span className="text-[10px] bg-emerald-400 text-emerald-950 font-bold px-2 py-0.5 rounded-full">
+                        YOLOv8 Online
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-200">
+                      Snap or upload a photograph of potholes, water leaks, or road cracks to run real-time bounding box detection and automated departmental routing.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveView("civic-scanner")}
+                  className="px-5 py-2.5 bg-white text-[#001e40] hover:bg-blue-50 font-bold text-xs rounded-lg shadow transition-all shrink-0 flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[16px]">visibility</span>
+                  Launch AI Scanner
+                </button>
+              </div>
+
               {/* ================= TRENDS AND DISTRIBUTION ================= */}
               <div className="grid grid-cols-12 gap-6">
                 {/* Trend Chart */}
@@ -191,14 +226,33 @@ export default function CitizenDashboard({ onLogout }) {
 
                   {/* Chart Bars */}
                   <div className="h-64 flex items-end justify-between gap-3 px-2">
-                    {[
-                      ["Jan", 40, 12],
-                      ["Feb", 60, 18],
-                      ["Mar", 45, 14],
-                      ["Apr", 85, 24],
-                      ["May", 55, 16],
-                      ["Jun", 70, 21],
-                    ].map(([month, height, value]) => (
+                    {(() => {
+                      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                      const now = new Date();
+                      const months = [];
+                      for (let i = 5; i >= 0; i--) {
+                        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                        months.push({
+                          name: monthNames[d.getMonth()],
+                          yearMonth: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+                          count: 0
+                        });
+                      }
+                      complaintsList.forEach(c => {
+                        if (c.created_at) {
+                          const cDate = new Date(c.created_at);
+                          const ym = `${cDate.getFullYear()}-${String(cDate.getMonth() + 1).padStart(2, "0")}`;
+                          const m = months.find(x => x.yearMonth === ym);
+                          if (m) m.count++;
+                        }
+                      });
+                      const maxCount = Math.max(...months.map(m => m.count), 1);
+                      return months.map(m => [
+                        m.name,
+                        Math.max(Math.round((m.count / maxCount) * 100), m.count > 0 ? 15 : 6),
+                        m.count
+                      ]);
+                    })().map(([month, height, value]) => (
                       <div
                         key={month}
                         className="flex-1 h-full flex flex-col justify-end items-center group cursor-pointer"
@@ -228,7 +282,7 @@ export default function CitizenDashboard({ onLogout }) {
                     <div className="flex justify-center py-4">
                       <div className="donut-chart">
                         <div className="donut-inner">
-                          <span className="text-2xl font-bold">24</span>
+                          <span className="text-2xl font-bold">{metrics.total}</span>
                           <span className="text-[10px] uppercase font-bold text-gray-500">
                             Total
                           </span>
@@ -242,7 +296,9 @@ export default function CitizenDashboard({ onLogout }) {
                           <span className="w-3 h-3 bg-primary-container rounded-full" />
                           <span className="text-gray-600">Resolved</span>
                         </div>
-                        <span className="font-bold">71%</span>
+                        <span className="font-bold">
+                          {metrics.total > 0 ? Math.round((metrics.resolved / metrics.total) * 100) : 0}%
+                        </span>
                       </div>
 
                       <div className="flex justify-between items-center text-sm">
@@ -250,7 +306,9 @@ export default function CitizenDashboard({ onLogout }) {
                           <span className="w-3 h-3 bg-orange-500 rounded-full" />
                           <span className="text-gray-600">Pending</span>
                         </div>
-                        <span className="font-bold">25%</span>
+                        <span className="font-bold">
+                          {metrics.total > 0 ? Math.round((metrics.pending / metrics.total) * 100) : 0}%
+                        </span>
                       </div>
 
                       <div className="flex justify-between items-center text-sm">
@@ -258,7 +316,9 @@ export default function CitizenDashboard({ onLogout }) {
                           <span className="w-3 h-3 bg-red-600 rounded-full" />
                           <span className="text-gray-600">Escalated</span>
                         </div>
-                        <span className="font-bold">4%</span>
+                        <span className="font-bold">
+                          {metrics.total > 0 ? Math.round((metrics.escalated / metrics.total) * 100) : 0}%
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -379,8 +439,23 @@ export default function CitizenDashboard({ onLogout }) {
                 </div>
               </footer>
             </>
+          ) : activeView === "civic-scanner" ? (
+            <CivicVisionInspector
+              onBackToDashboard={() => setActiveView("dashboard")}
+              onLodgeComplaint={(preloaded) => {
+                setInitialComplaintData(preloaded);
+                setActiveView("new-complaint");
+              }}
+            />
           ) : activeView === "new-complaint" ? (
-            <NewComplaintForm onBackToDashboard={() => setActiveView("dashboard")} />
+            <NewComplaintForm
+              onBackToDashboard={() => {
+                setInitialComplaintData(null);
+                setActiveView("dashboard");
+              }}
+              initialFile={initialComplaintData?.file}
+              initialAnalysis={initialComplaintData?.analysis}
+            />
           ) : activeView === "profile" ? (
             <CitizenProfile onBackToDashboard={() => setActiveView("dashboard")} />
           ) : activeView === "history" ? (
@@ -466,6 +541,17 @@ export default function CitizenDashboard({ onLogout }) {
                   {new Date(selectedComplaint.created_at).toLocaleDateString()}
                 </p>
               </div>
+
+              {selectedComplaint.images && selectedComplaint.images.length > 0 && (
+                <div className="pt-2">
+                  <AIVisionResults
+                    imageSrc={selectedComplaint.images[0].image_url}
+                    analysisData={selectedComplaint.ai_analysis}
+                    compact={true}
+                    title="Visual Evidence &amp; AI Detection"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="p-6 border-t border-gray-200 flex justify-end">

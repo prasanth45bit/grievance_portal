@@ -1,0 +1,30 @@
+{
+    "label2id": {
+        "Animal Control": 0,
+        "Drainage and Sewerage": 1,
+        "Electricity": 2,
+        "Environment": 3,
+        "Municipal Administration": 4,
+        "Parks and Recreation": 5,
+        "Public Health": 6,
+        "Roads and Highways": 7,
+        "Sanitation": 8,
+        "Street Lighting": 9,
+        "Transport": 10,
+        "Water Supply": 11
+    },
+    "id2label": {
+        "0": "Animal Control",
+        "1": "Drainage and Sewerage",
+        "2": "Electricity",
+        "3": "Environment",
+        "4": "Municipal Administration",
+        "5": "Parks and Recreation",
+        "6": "Public Health",
+        "7": "Roads and Highways",
+        "8": "Sanitation",
+        "9": "Street Lighting",
+        "10": "Transport",
+        "11": "Water Supply"
+    }
+}

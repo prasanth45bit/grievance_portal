@@ -1,17 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { api } from "../../utils/api";
 
 export default function OfficerSettings({ onBackToDashboard }) {
   // Duty status state
   const [isDutyActive, setIsDutyActive] = useState(true);
+  const [togglingDuty, setTogglingDuty] = useState(false);
 
   // Security passwords
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [securityToast, setSecurityToast] = useState(null); // { type: 'success' | 'error', message: '' }
+  const [updatingPwd, setUpdatingPwd] = useState(false);
 
   // Contact Info
-  const [email, setEmail] = useState("officer.sharma@gov.in");
+  const [email, setEmail] = useState("");
   const [contactToast, setContactToast] = useState(false);
 
   // Localization
@@ -24,7 +27,38 @@ export default function OfficerSettings({ onBackToDashboard }) {
   const [alertVip, setAlertVip] = useState(true);
   const [alertOverdue, setAlertOverdue] = useState(true);
 
-  const handleUpdatePassword = (e) => {
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const res = await api.officer.getProfile();
+        if (res.success && res.data) {
+          setIsDutyActive(res.data.status === "ACTIVE");
+          if (res.data.email) setEmail(res.data.email);
+        }
+      } catch (err) {
+        console.error("Failed to load officer settings profile:", err);
+      }
+    };
+    loadProfile();
+  }, []);
+
+  const handleToggleDutyStatus = async () => {
+    if (togglingDuty) return;
+    setTogglingDuty(true);
+    try {
+      const nextStatus = isDutyActive ? "INACTIVE" : "ACTIVE";
+      const res = await api.officer.toggleDutyStatus(nextStatus);
+      if (res.success) {
+        setIsDutyActive(res.data?.isActive ?? (nextStatus === "ACTIVE"));
+      }
+    } catch (err) {
+      alert(err.message || "Failed to update duty status.");
+    } finally {
+      setTogglingDuty(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (!currentPwd || !newPwd || !confirmPwd) {
       setSecurityToast({
@@ -48,28 +82,42 @@ export default function OfficerSettings({ onBackToDashboard }) {
       return;
     }
 
-    setSecurityToast({
-      type: "success",
-      message: "Password updated successfully!",
-    });
-    setCurrentPwd("");
-    setNewPwd("");
-    setConfirmPwd("");
-    setTimeout(() => {
-      setSecurityToast(null);
-    }, 4000);
+    setUpdatingPwd(true);
+    try {
+      const res = await api.officer.changePassword(currentPwd, newPwd);
+      if (res.success) {
+        setSecurityToast({
+          type: "success",
+          message: "Officer password updated successfully in database!",
+        });
+        setCurrentPwd("");
+        setNewPwd("");
+        setConfirmPwd("");
+        setTimeout(() => setSecurityToast(null), 4000);
+      }
+    } catch (err) {
+      setSecurityToast({
+        type: "error",
+        message: err.message || "Failed to update password.",
+      });
+    } finally {
+      setUpdatingPwd(false);
+    }
   };
 
-  const handleContactSave = (e) => {
+  const handleContactSave = async (e) => {
     e.preventDefault();
     if (!email.includes("@")) {
       alert("Please enter a valid official email address.");
       return;
     }
-    setContactToast(true);
-    setTimeout(() => {
-      setContactToast(false);
-    }, 3500);
+    try {
+      await api.officer.updateProfile({ email });
+      setContactToast(true);
+      setTimeout(() => setContactToast(false), 3500);
+    } catch (err) {
+      alert(err.message || "Failed to update contact email.");
+    }
   };
 
   return (
@@ -79,17 +127,17 @@ export default function OfficerSettings({ onBackToDashboard }) {
         <div>
           <h2 className="text-3xl font-bold text-[#001e40]">Account Settings</h2>
           <p className="text-sm text-gray-500 mt-1 font-semibold">
-            Manage your officer profile, preferences, and system access.
+            Manage your officer profile, duty availability, and system access.
           </p>
         </div>
 
-        {/* Availability Status Toggle (Prominent) */}
+        {/* Availability Status Toggle (Live DB integration) */}
         <div className="bg-gray-100 border border-[#c3c6d1] rounded-xl p-3 flex items-center gap-4 shadow-sm">
           <div className="flex flex-col">
             <span className="text-xs font-bold text-[#001e40]">Duty Status</span>
             <span
               className={`text-xs font-bold ${
-                isDutyActive ? "text-gray-500" : "text-orange-600"
+                isDutyActive ? "text-green-700" : "text-orange-600"
               }`}
             >
               {isDutyActive
@@ -99,14 +147,10 @@ export default function OfficerSettings({ onBackToDashboard }) {
           </div>
 
           {/* Toggle Switch */}
-          <div className="relative inline-flex items-center cursor-pointer select-none">
-            <input
-              type="checkbox"
-              id="duty-toggle"
-              className="sr-only"
-              checked={isDutyActive}
-              onChange={() => setIsDutyActive(!isDutyActive)}
-            />
+          <div
+            onClick={handleToggleDutyStatus}
+            className="relative inline-flex items-center cursor-pointer select-none"
+          >
             <div
               className={`w-11 h-6 rounded-full transition-colors ${
                 isDutyActive ? "bg-[#001e40]" : "bg-gray-300"
@@ -163,7 +207,7 @@ export default function OfficerSettings({ onBackToDashboard }) {
                   placeholder="••••••••"
                   value={currentPwd}
                   onChange={(e) => setCurrentPwd(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-[#c3c6d1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 bg-gray-50 border border-[#c3c6d1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary font-semibold"
                 />
               </div>
 
@@ -181,7 +225,7 @@ export default function OfficerSettings({ onBackToDashboard }) {
                     placeholder="••••••••"
                     value={newPwd}
                     onChange={(e) => setNewPwd(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-50 border border-[#c3c6d1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 bg-gray-50 border border-[#c3c6d1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary font-semibold"
                   />
                 </div>
                 <div>
@@ -197,7 +241,7 @@ export default function OfficerSettings({ onBackToDashboard }) {
                     placeholder="••••••••"
                     value={confirmPwd}
                     onChange={(e) => setConfirmPwd(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-50 border border-[#c3c6d1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 bg-gray-50 border border-[#c3c6d1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary font-semibold"
                   />
                 </div>
               </div>
@@ -205,9 +249,10 @@ export default function OfficerSettings({ onBackToDashboard }) {
               <div className="pt-2 flex justify-end">
                 <button
                   type="submit"
-                  className="bg-[#001e40] hover:opacity-90 text-white font-bold text-xs py-2 px-4 rounded-lg shadow-sm"
+                  disabled={updatingPwd}
+                  className="bg-[#001e40] hover:opacity-90 text-white font-bold text-xs py-2 px-4 rounded-lg shadow-sm flex items-center gap-1"
                 >
-                  Update Password
+                  {updatingPwd ? "Updating..." : "Update Password"}
                 </button>
               </div>
             </form>
@@ -227,7 +272,7 @@ export default function OfficerSettings({ onBackToDashboard }) {
             <form onSubmit={handleContactSave} className="space-y-4 max-w-lg">
               {contactToast && (
                 <div className="p-3 bg-green-50 border border-green-205 text-green-800 rounded-lg text-xs font-semibold">
-                  Official email verify link sent to {email}.
+                  Official contact email updated to {email}.
                 </div>
               )}
 
@@ -251,7 +296,7 @@ export default function OfficerSettings({ onBackToDashboard }) {
                   />
                 </div>
                 <p className="text-[10px] text-gray-450 mt-1 font-semibold">
-                  This email is used for official CPGRAMS communications and dispatch reports.
+                  This email is used for official CPGRAMS dispatch notices and alerts.
                 </p>
               </div>
 
@@ -260,7 +305,7 @@ export default function OfficerSettings({ onBackToDashboard }) {
                   type="submit"
                   className="border border-[#001e40] text-[#001e40] hover:bg-gray-100 font-bold text-xs py-2 px-4 rounded-lg transition-colors"
                 >
-                  Verify &amp; Save
+                  Save Email
                 </button>
               </div>
             </form>
@@ -357,24 +402,9 @@ export default function OfficerSettings({ onBackToDashboard }) {
                       New Assignments
                     </span>
                     <span className="text-[10px] text-gray-500 leading-normal mt-0.5">
-                      Notify when a new highways grievance is routed to you.
+                      Notify when a new grievance is routed to you.
                     </span>
-                    <div className="flex gap-1.5 mt-2">
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-2 py-0.5 bg-gray-200 text-gray-650 rounded-full">
-                        <span className="material-symbols-outlined text-[10px]">
-                          mail
-                        </span>{" "}
-                        Email
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                        <span className="material-symbols-outlined text-[10px]">
-                          desktop_windows
-                        </span>{" "}
-                        Dashboard
-                      </span>
-                    </div>
                   </div>
-                  {/* Toggle Switch */}
                   <div className="relative inline-flex items-center cursor-pointer select-none shrink-0">
                     <input
                       type="checkbox"
@@ -403,24 +433,9 @@ export default function OfficerSettings({ onBackToDashboard }) {
                       High Priority &amp; VIP
                     </span>
                     <span className="text-[10px] text-gray-500 leading-normal mt-0.5">
-                      Immediate alerts for sensitive highway cases.
+                      Immediate alerts for critical civic cases.
                     </span>
-                    <div className="flex gap-1.5 mt-2">
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                        <span className="material-symbols-outlined text-[10px]">
-                          mail
-                        </span>{" "}
-                        Email
-                      </span>
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">
-                        <span className="material-symbols-outlined text-[10px]">
-                          sms
-                        </span>{" "}
-                        SMS
-                      </span>
-                    </div>
                   </div>
-                  {/* Toggle Switch */}
                   <div className="relative inline-flex items-center cursor-pointer select-none shrink-0">
                     <input
                       type="checkbox"
@@ -451,16 +466,7 @@ export default function OfficerSettings({ onBackToDashboard }) {
                     <span className="text-[10px] text-gray-500 leading-normal mt-0.5">
                       Alerts 24 hours before SLA breach.
                     </span>
-                    <div className="flex gap-1.5 mt-2">
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                        <span className="material-symbols-outlined text-[10px]">
-                          mail
-                        </span>{" "}
-                        Email
-                      </span>
-                    </div>
                   </div>
-                  {/* Toggle Switch */}
                   <div className="relative inline-flex items-center cursor-pointer select-none shrink-0">
                     <input
                       type="checkbox"

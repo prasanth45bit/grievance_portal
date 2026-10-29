@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { api } from "../../utils/api";
 
 export default function AccountSettings({ onBackToDashboard }) {
   // Accessibility
@@ -14,6 +15,7 @@ export default function AccountSettings({ onBackToDashboard }) {
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [passwordFeedback, setPasswordFeedback] = useState(null); // { type: 'success' | 'error', message: '' }
+  const [updatingPwd, setUpdatingPwd] = useState(false);
 
   // Notifications
   const [smsAlerts, setSmsAlerts] = useState(true);
@@ -23,7 +25,7 @@ export default function AccountSettings({ onBackToDashboard }) {
   // Save Settings Status
   const [saveFeedback, setSaveFeedback] = useState(false);
 
-  const handleUpdatePassword = (e) => {
+  const handleUpdatePassword = async (e) => {
     e.preventDefault();
     if (!currentPwd || !newPwd || !confirmPwd) {
       setPasswordFeedback({
@@ -47,17 +49,27 @@ export default function AccountSettings({ onBackToDashboard }) {
       return;
     }
 
-    // Success Mock
-    setPasswordFeedback({
-      type: "success",
-      message: "Password updated successfully!",
-    });
-    setCurrentPwd("");
-    setNewPwd("");
-    setConfirmPwd("");
-    setTimeout(() => {
-      setPasswordFeedback(null);
-    }, 4000);
+    setUpdatingPwd(true);
+    try {
+      const res = await api.citizen.changePassword(currentPwd, newPwd);
+      if (res.success) {
+        setPasswordFeedback({
+          type: "success",
+          message: "Password updated successfully in database!",
+        });
+        setCurrentPwd("");
+        setNewPwd("");
+        setConfirmPwd("");
+        setTimeout(() => setPasswordFeedback(null), 4000);
+      }
+    } catch (err) {
+      setPasswordFeedback({
+        type: "error",
+        message: err.message || "Failed to update password.",
+      });
+    } finally {
+      setUpdatingPwd(false);
+    }
   };
 
   const handleSaveSettings = () => {

@@ -1,14 +1,25 @@
 version: '3.8'
 
 services:
-  api:
+  classifier-api:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: grievance-classifier-service
     ports:
       - "8000:8000"
     volumes:
-      - ./model:/app/model
+      - ./grievance-bert-model:/app/grievance-bert-model:ro
     environment:
       - PORT=8000
-    restart: always
+      - HOST=0.0.0.0
+      - MODEL_PATH=/app/grievance-bert-model
+      - CONFIDENCE_THRESHOLD=0.60
+      - DEFAULT_TOP_K=3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

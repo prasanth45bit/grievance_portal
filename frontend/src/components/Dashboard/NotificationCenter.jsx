@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { api } from "../../utils/api";
 
 export default function NotificationCenter({ onBackToDashboard, onNavigate }) {
   const [selectedFilter, setSelectedFilter] = useState("All");
@@ -6,6 +7,8 @@ export default function NotificationCenter({ onBackToDashboard, onNavigate }) {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isDocumentUploaded, setIsDocumentUploaded] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
 
   const filterChips = [
@@ -15,56 +18,37 @@ export default function NotificationCenter({ onBackToDashboard, onNavigate }) {
     "General Announcement",
   ];
 
-  const notifications = [
-    {
-      id: "notif-1",
-      category: "Action Required",
-      time: "2h ago",
-      title: "Additional Documents Needed",
-      description:
-        "Please upload the supporting property tax receipt for grievance #CP2024/9912 to proceed with your claim verification.",
-      isActionable: true,
-      color: "bg-error",
-      bgContainer: "bg-error-container text-on-error-container",
-      icon: "error",
-    },
-    {
-      id: "notif-2",
-      category: "Status Update",
-      time: "1d ago",
-      title: "Complaint Resolved",
-      description:
-        "Your complaint #CP2024/9845 regarding delayed municipal services has been marked as resolved by the concerned department.",
-      isResolvedLink: true,
-      color: "bg-green-600",
-      bgContainer: "bg-green-100 text-green-700",
-      icon: "check_circle",
-    },
-    {
-      id: "notif-3",
-      category: "Status Update",
-      time: "3d ago",
-      title: "Forwarded to Department",
-      description:
-        "Grievance #CP2024/9912 has been successfully forwarded to the Central Public Works Department for further review.",
-      isTrackLink: true,
-      color: "bg-[#fe9832]",
-      bgContainer: "bg-[#ffdcc2] text-[#2e1500]",
-      icon: "sync",
-    },
-    {
-      id: "notif-4",
-      category: "General Announcement",
-      time: "1w ago",
-      title: "Scheduled Maintenance",
-      description:
-        "The CPGRAMS portal will undergo scheduled maintenance on Sunday from 02:00 AM to 05:00 AM IST. Some tracking services may be temporarily unavailable.",
-      isAnnouncement: true,
-      color: "bg-gray-400",
-      bgContainer: "bg-gray-150 text-gray-700",
-      icon: "campaign",
-    },
-  ];
+  const loadNotifications = async () => {
+    setLoading(true);
+    try {
+      const res = await api.notifications.getNotifications();
+      if (res.success && res.data && res.data.length > 0) {
+        const mapped = res.data.map((n) => ({
+          id: n.notification_id,
+          category: n.title?.includes("Accepted") || n.title?.includes("Resolved") ? "Status Update" : "Action Required",
+          time: new Date(n.created_at).toLocaleDateString([], { month: "short", day: "numeric" }),
+          title: n.title,
+          description: n.message,
+          isActionable: !n.is_read,
+          color: n.title?.includes("Resolved") ? "bg-green-600" : "bg-[#001e40]",
+          bgContainer: n.title?.includes("Resolved") ? "bg-green-100 text-green-700" : "bg-[#d5e3ff] text-[#001e40]",
+          icon: n.title?.includes("Resolved") ? "check_circle" : "notifications",
+          raw: n,
+        }));
+        setNotifications(mapped);
+      } else {
+        setNotifications([]);
+      }
+    } catch (err) {
+      console.warn("Could not load notifications:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   const filteredNotifs = notifications.filter((notif) => {
     if (selectedFilter === "All") return true;

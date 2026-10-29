@@ -1,5 +1,6 @@
+const bcrypt = require("bcryptjs");
 const { Op } = require("sequelize");
-const { Complaint, ComplaintImage, ComplaintStatusHistory, Citizen, DepartmentAdmin } = require("../models");
+const { Complaint, ComplaintImage, ComplaintStatusHistory, Citizen, DepartmentAdmin, Officer, Department, District } = require("../models");
 const notificationService = require("../services/notificationService");
 const { sendSuccess, sendError } = require("../utils/response");
 const logger = require("../utils/logger");
@@ -308,6 +309,131 @@ const uploadResolutionImage = async (req, res, next) => {
   }
 };
 
+// ----------------------------------------------------
+// OFFICER PROFILE & ACCOUNT SETTINGS
+// ----------------------------------------------------
+const getProfile = async (req, res, next) => {
+  try {
+    const officer = await Officer.findByPk(req.user.userId, {
+      attributes: { exclude: ["password_hash"] },
+      include: [
+        { model: Department, as: "department", attributes: ["department_id", "department_name", "description"] },
+        { model: District, as: "district", attributes: ["district_id", "district_name", "state_name"] },
+      ],
+    });
+
+    if (!officer) {
+      return sendError(res, "Officer profile not found", "NOT_FOUND", 404);
+    }
+
+    const resolvedCount = await Complaint.count({
+      where: {
+        officer_id: req.user.userId,
+        status: { [Op.in]: ["RESOLVED", "CLOSED"] },
+      },
+    });
+
+    const activeCount = await Complaint.count({
+      where: {
+        officer_id: req.user.userId,
+        status: { [Op.in]: ["ASSIGNED", "ACCEPTED", "IN_PROGRESS", "ON_HOLD", "ESCALATED"] },
+      },
+    });
+
+    const officerData = officer.toJSON();
+    officerData.metrics = {
+      totalResolved: resolvedCount,
+      activeComplaints: activeCount,
+    };
+
+    return sendSuccess(res, "Officer profile retrieved successfully", officerData);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProfile = async (req, res, next) => {
+  try {
+    const { fullName, phone, designation, profileImage } = req.body;
+    const officer = await Officer.findByPk(req.user.userId);
+
+    if (!officer) {
+      return sendError(res, "Officer profile not found", "NOT_FOUND", 404);
+    }
+
+    if (fullName) officer.full_name = fullName;
+    if (phone) officer.phone = phone;
+    if (designation) officer.designation = designation;
+    if (profileImage !== undefined) officer.profile_image = profileImage;
+
+    await officer.save();
+
+    const officerJson = officer.toJSON();
+    delete officerJson.password_hash;
+
+    return sendSuccess(res, "Officer profile updated successfully", officerJson);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, oldPassword, newPassword } = req.body;
+    const pwdToCheck = oldPassword || currentPassword;
+
+    if (!pwdToCheck || !newPassword) {
+      return sendError(res, "Current password and new password are required", "BAD_REQUEST", 400);
+    }
+
+    const officer = await Officer.findByPk(req.user.userId);
+    if (!officer) {
+      return sendError(res, "Officer profile not found", "NOT_FOUND", 404);
+    }
+
+    const match = await bcrypt.compare(pwdToCheck, officer.password_hash);
+    if (!match) {
+      return sendError(res, "Incorrect current password", "INVALID_OLD_PASSWORD", 400);
+    }
+
+    officer.password_hash = await bcrypt.hash(newPassword, 10);
+    await officer.save();
+
+    return sendSuccess(res, "Password updated successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+const toggleDutyStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const officer = await Officer.findByPk(req.user.userId);
+
+    if (!officer) {
+      return sendError(res, "Officer not found", "NOT_FOUND", 404);
+    }
+
+    if (status) {
+      if (!["ACTIVE", "INACTIVE"].includes(status)) {
+        return sendError(res, "Status must be ACTIVE or INACTIVE", "BAD_REQUEST", 400);
+      }
+      officer.status = status;
+    } else {
+      officer.status = officer.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    }
+
+    await officer.save();
+
+    return sendSuccess(res, `Duty status updated to ${officer.status}`, {
+      status: officer.status,
+      isActive: officer.status === "ACTIVE",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAssignedComplaints,
@@ -317,4 +443,8 @@ module.exports = {
   escalateComplaint,
   resolveComplaint,
   uploadResolutionImage,
+  getProfile,
+  updateProfile,
+  changePassword,
+  toggleDutyStatus,
 };

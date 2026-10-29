@@ -17,6 +17,7 @@ const adminRoutes = require("./src/routes/adminRoutes");
 const officerRoutes = require("./src/routes/officerRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
 const feedbackRoutes = require("./src/routes/feedbackRoutes");
+const catalogRoutes = require("./src/routes/catalogRoutes");
 
 const app = express();
 
@@ -40,15 +41,32 @@ app.use(
 // Serve uploads directory as static
 const uploadDirectory = path.join(__dirname, env.UPLOAD_DIR);
 app.use("/uploads", express.static(uploadDirectory));
+app.use("/api/uploads", express.static(uploadDirectory));
 
-// API Routes mounting
+// API Routes mounting - Mounted on both /api and root to support all frontend client configs
+app.use("/api", catalogRoutes); // GET /api/districts, GET /api/departments
+app.use("/", catalogRoutes);
+
 app.use("/api/auth", authRoutes);
+app.use("/auth", authRoutes);
+
 app.use("/api/citizens", citizenRoutes);
+app.use("/citizens", citizenRoutes);
+
 app.use("/api/complaints", complaintRoutes);
+app.use("/complaints", complaintRoutes);
+
 app.use("/api/admin", adminRoutes);
+app.use("/admin", adminRoutes);
+
 app.use("/api/officer", officerRoutes);
+app.use("/officer", officerRoutes);
+
 app.use("/api/notifications", notificationRoutes);
+app.use("/notifications", notificationRoutes);
+
 app.use("/api", feedbackRoutes); // mounts POST /api/complaints/:id/feedback
+app.use("/", feedbackRoutes);
 
 // Welcome route
 app.get("/", (req, res) => {

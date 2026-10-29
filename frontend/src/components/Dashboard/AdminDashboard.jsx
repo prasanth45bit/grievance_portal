@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../utils/api";
+import CivicVisionInspector from "./CivicVisionInspector";
+import AIVisionResults from "../common/AIVisionResults";
 
 export default function AdminDashboard({ onLogout }) {
   const [activeView, setActiveView] = useState("dashboard"); // 'dashboard', 'complaints', 'officers', 'reports', 'notifications', 'profile', 'settings'
@@ -45,6 +47,16 @@ export default function AdminDashboard({ onLogout }) {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Dynamic backend data states
+  const [districtsList, setDistrictsList] = useState([]);
+  const [adminProfile, setAdminProfile] = useState(null);
+  const [adminNotifications, setAdminNotifications] = useState([]);
+  const [districtReport, setDistrictReport] = useState([]);
+  const [overviewReport, setOverviewReport] = useState(null);
+  const [profileForm, setProfileForm] = useState({ fullName: "", phone: "" });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState("");
+
   const [metrics, setMetrics] = useState({
     totalComplaints: 0,
     pendingComplaints: 0,
@@ -56,20 +68,74 @@ export default function AdminDashboard({ onLogout }) {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      // Fetch stats
+      // 1. Fetch live districts from catalog
+      try {
+        const distRes = await api.common.getDistricts();
+        if (distRes.success && distRes.data) {
+          setDistrictsList(distRes.data);
+        }
+      } catch (err) {
+        console.warn("Could not load catalog districts:", err);
+      }
+
+      // 2. Fetch admin profile
+      try {
+        const profRes = await api.admin.getProfile();
+        if (profRes.success && profRes.data) {
+          setAdminProfile(profRes.data);
+          setProfileForm({
+            fullName: profRes.data.full_name || "",
+            phone: profRes.data.phone || ""
+          });
+        }
+      } catch (err) {
+        console.warn("Could not load admin profile:", err);
+      }
+
+      // 3. Fetch stats
       const statsRes = await api.admin.getDashboardStats();
       if (statsRes.success && statsRes.data) {
         setMetrics(statsRes.data.metrics);
       }
 
-      // Fetch officers
+      // 4. Fetch district report for chart
+      try {
+        const repRes = await api.admin.getDistrictReport();
+        if (repRes.success && repRes.data) {
+          setDistrictReport(repRes.data);
+        }
+      } catch (err) {
+        console.warn("Could not load district report:", err);
+      }
+
+      // 5. Fetch overview report
+      try {
+        const ovRes = await api.admin.getOverviewReport();
+        if (ovRes.success && ovRes.data) {
+          setOverviewReport(ovRes.data);
+        }
+      } catch (err) {
+        console.warn("Could not load overview report:", err);
+      }
+
+      // 6. Fetch admin notifications
+      try {
+        const notifRes = await api.notifications.getNotifications();
+        if (notifRes.success && notifRes.data) {
+          setAdminNotifications(notifRes.data);
+        }
+      } catch (err) {
+        console.warn("Could not load admin notifications:", err);
+      }
+
+      // 7. Fetch officers
       const officersRes = await api.admin.getOfficers();
       if (officersRes.success && officersRes.data) {
         const mappedOfficers = officersRes.data.map(o => ({
           id: o.employee_id,
           name: o.full_name,
           initials: o.full_name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2) || "AE",
-          district: o.district?.district_name || "Salem",
+          district: o.district?.district_name || "Assigned Jurisdiction",
           pending: o.complaints ? o.complaints.filter(c => ["SUBMITTED", "ASSIGNED", "ACCEPTED", "IN_PROGRESS"].includes(c.status)).length : 0,
           progress: o.complaints ? o.complaints.filter(c => c.status === "IN_PROGRESS").length : 0,
           resolved: o.complaints ? o.complaints.filter(c => ["RESOLVED", "CLOSED"].includes(c.status)).length : 0,
@@ -79,20 +145,23 @@ export default function AdminDashboard({ onLogout }) {
         setOfficers(mappedOfficers);
       }
 
-      // Fetch complaints
+      // 8. Fetch complaints
       const complaintsRes = await api.admin.getGrievances(1, 100);
       if (complaintsRes.success && complaintsRes.data) {
         const mappedComplaints = complaintsRes.data.map(c => ({
           complaint_id: c.complaint_id,
           id: c.ticket_number,
           subject: c.title,
-          district: c.district?.district_name || "Salem",
+          district: c.district?.district_name || "Assigned Jurisdiction",
           category: c.department?.department_name || "General",
           priority: c.priority === "CRITICAL" || c.priority === "HIGH" ? "High" : "Medium",
           assignedOfficer: c.officer?.full_name || "Unassigned",
           status: c.status,
           date: new Date(c.created_at).toLocaleDateString(),
-          description: c.description
+          description: c.description,
+          images: c.images || [],
+          ai_analysis: c.ai_analysis || null,
+          raw: c,
         }));
         setComplaints(mappedComplaints);
       }
@@ -108,7 +177,49 @@ export default function AdminDashboard({ onLogout }) {
   }, [activeView]);
 
   const handleDownloadReport = (format) => {
-    alert(`Highways department grievance status report dispatched successfully in ${format} format.`);
+    if (format === "CSV") {
+      const headers = ["Ticket ID", "Subject", "District", "Category", "Priority", "Officer", "Status", "Date"];
+      const rows = complaints.map(c => [
+        `"${c.id}"`,
+        `"${(c.subject || "").replace(/"/g, '""')}"`,
+        `"${c.district}"`,
+        `"${c.category}"`,
+        `"${c.priority}"`,
+        `"${c.assignedOfficer}"`,
+        `"${c.status}"`,
+        `"${c.date}"`
+      ]);
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `department_grievances_report_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      alert(`Report export generated for ${adminProfile?.department?.department_name || "Highways"} Department.`);
+    }
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileSuccessMsg("");
+    try {
+      const res = await api.admin.updateProfile({
+        fullName: profileForm.fullName,
+        phone: profileForm.phone
+      });
+      if (res.success) {
+        setProfileSuccessMsg("Admin profile updated successfully!");
+        setAdminProfile(prev => ({ ...prev, ...res.data }));
+      }
+    } catch (err) {
+      alert(err.message || "Failed to update profile.");
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const handleCreateOfficer = async (e) => {
@@ -192,8 +303,8 @@ export default function AdminDashboard({ onLogout }) {
             </span>
           </div>
           <div>
-            <h1 className="text-sm font-bold text-primary truncate leading-tight">Officer Console</h1>
-            <p className="text-[11px] text-gray-500 font-bold truncate mt-0.5">Highways Department</p>
+            <h1 className="text-sm font-bold text-primary truncate leading-tight">Admin Console</h1>
+            <p className="text-[11px] text-gray-500 font-bold truncate mt-0.5">{adminProfile?.department?.department_name || "Highways"} Department</p>
           </div>
         </div>
 
@@ -262,6 +373,20 @@ export default function AdminDashboard({ onLogout }) {
           >
             <span className="material-symbols-outlined text-[20px]">description</span>
             <span className="text-sm">Reports</span>
+          </li>
+
+          <li
+            onClick={() => setActiveView("vision-inspector")}
+            className={`flex items-center gap-3 py-3 px-4 mx-2 rounded-lg cursor-pointer transition-colors ${
+              activeView === "vision-inspector"
+                ? "bg-[#001e40] text-white font-bold"
+                : "text-gray-655 hover:bg-gray-200"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: activeView === "vision-inspector" ? "'FILL' 1" : "'FILL' 0" }}>
+              document_scanner
+            </span>
+            <span className="text-sm">Vision AI Inspector</span>
           </li>
 
           <li
@@ -373,7 +498,7 @@ export default function AdminDashboard({ onLogout }) {
                 <div>
                   <h2 className="text-3xl font-bold text-[#001e40]">Overview Dashboard</h2>
                   <p className="text-xs text-gray-500 mt-1 font-semibold">
-                    Highways Department Status Report
+                    {adminProfile?.department?.department_name || "Highways"} Department Status Report
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -441,29 +566,46 @@ export default function AdminDashboard({ onLogout }) {
                     <h3 className="text-sm font-bold text-[#001e40]">Complaints by District</h3>
                     <span className="material-symbols-outlined text-gray-400 cursor-pointer">more_vert</span>
                   </div>
-                  <div className="flex-grow flex items-end justify-between gap-2 h-48 border-b border-gray-200 pb-2">
-                    {[
-                      { l: "Salem", v: 245, h: "79%" },
-                      { l: "Erode", v: 180, h: "58%" },
-                      { l: "Coimbatore", v: 310, h: "100%" },
-                      { l: "Madurai", v: 150, h: "48%" },
-                      { l: "Trichy", v: 120, h: "38%" },
-                      { l: "Tirunelveli", v: 85, h: "27%" },
-                      { l: "Vellore", v: 95, h: "30%" }
-                    ].map((d, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center group relative cursor-pointer">
-                        <div className="absolute bottom-full mb-1 bg-gray-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          {d.v} active
+                  <div className="flex-grow flex items-end justify-between gap-2 h-48 border-b border-gray-200 pb-2 overflow-x-auto">
+                    {(() => {
+                      const chartData = districtReport.length > 0
+                        ? districtReport.map(r => ({
+                            l: r.district?.district_name || `Dist ${r.district_id}`,
+                            v: parseInt(r.complaintsCount || r.dataValues?.complaintsCount || 0)
+                          }))
+                        : (() => {
+                            const counts = {};
+                            complaints.forEach(c => {
+                              counts[c.district] = (counts[c.district] || 0) + 1;
+                            });
+                            const entries = Object.entries(counts);
+                            if (entries.length > 0) {
+                              return entries.map(([l, v]) => ({ l, v }));
+                            }
+                            return [
+                              { l: "Salem", v: 0 },
+                              { l: "Chennai", v: 0 },
+                              { l: "Coimbatore", v: 0 },
+                              { l: "Madurai", v: 0 },
+                              { l: "Trichy", v: 0 }
+                            ];
+                          })();
+                      const maxVal = Math.max(...chartData.map(d => d.v), 1);
+                      return chartData.map((d, idx) => (
+                        <div key={idx} className="flex-1 min-w-[36px] flex flex-col items-center group relative cursor-pointer">
+                          <div className="absolute bottom-full mb-1 bg-gray-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                            {d.v} active
+                          </div>
+                          <div 
+                            className="w-full bg-[#001e40] rounded-t-sm group-hover:bg-[#fe9832] transition-colors"
+                            style={{ height: `${Math.max(Math.round((d.v / maxVal) * 100), 8)}%` }}
+                          />
+                          <span className="text-[10px] text-gray-500 font-bold mt-2 truncate w-full text-center">
+                            {d.l}
+                          </span>
                         </div>
-                        <div 
-                          className="w-full bg-[#001e40] rounded-t-sm group-hover:bg-[#fe9832] transition-colors"
-                          style={{ height: d.h }}
-                        />
-                        <span className="text-[10px] text-gray-500 font-bold mt-2 truncate w-full text-center">
-                          {d.l}
-                        </span>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 </div>
 
@@ -614,10 +756,12 @@ export default function AdminDashboard({ onLogout }) {
                       onChange={(e) => setFilters({ ...filters, district: e.target.value })}
                       className="w-full px-3 py-2 bg-gray-50 border border-[#c3c6d1] rounded-lg text-xs focus:outline-none cursor-pointer"
                     >
-                      <option value="">All Districts</option>
-                      <option value="Salem">Salem</option>
-                      <option value="Erode">Erode</option>
-                      <option value="Coimbatore">Coimbatore</option>
+                      <option value="">All Districts ({districtsList.length > 0 ? `${districtsList.length} Districts` : "Loading..."})</option>
+                      {districtsList.map((d) => (
+                        <option key={d.district_id} value={d.district_name}>
+                          {d.district_name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -905,7 +1049,7 @@ export default function AdminDashboard({ onLogout }) {
               </div>
             </div>
           ) : activeView === "reports" ? (
-            <div className="space-y-6 max-w-2xl">
+            <div className="space-y-6 max-w-3xl">
               <div className="border-b border-gray-250 pb-4">
                 <h2 className="text-2xl font-bold text-[#001e40]">Dispatched Reports</h2>
                 <p className="text-xs text-gray-500 font-semibold mt-1">
@@ -913,24 +1057,41 @@ export default function AdminDashboard({ onLogout }) {
                 </p>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white border border-[#c3c6d1] rounded-xl p-4 shadow-sm">
+                  <div className="text-[10px] text-gray-400 font-bold uppercase">Total Grievances</div>
+                  <div className="text-2xl font-bold text-primary mt-1">{overviewReport?.totalGrievances ?? metrics.totalComplaints}</div>
+                </div>
+                <div className="bg-white border border-[#c3c6d1] rounded-xl p-4 shadow-sm">
+                  <div className="text-[10px] text-gray-400 font-bold uppercase">Resolved Grievances</div>
+                  <div className="text-2xl font-bold text-green-700 mt-1">{overviewReport?.totalResolved ?? metrics.resolvedComplaints}</div>
+                </div>
+                <div className="bg-white border border-[#c3c6d1] rounded-xl p-4 shadow-sm">
+                  <div className="text-[10px] text-gray-400 font-bold uppercase">Resolution Rate</div>
+                  <div className="text-2xl font-bold text-[#fe9832] mt-1">{overviewReport?.resolutionRate ?? metrics.resolutionPercentage}%</div>
+                </div>
+              </div>
+
               <div className="bg-white border border-[#c3c6d1] rounded-xl p-6 shadow-sm space-y-6">
                 <div>
                   <h3 className="text-sm font-bold text-gray-800 mb-2">Monthly Redressal Summary</h3>
                   <p className="text-xs text-gray-500 leading-relaxed font-semibold">
-                    Consolidated files containing all Highways division categories registered, resolved, or overdue during the current billing cycle.
+                    Consolidated files containing all {adminProfile?.department?.department_name || "Highways"} department grievances registered across all {districtsList.length || 38} districts.
                   </p>
                   <div className="flex gap-2 mt-4">
                     <button
-                      onClick={() => handleDownloadReport("PDF")}
-                      className="bg-primary text-white text-xs font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
+                      onClick={() => handleDownloadReport("CSV")}
+                      className="bg-primary text-white text-xs font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
                     >
-                      Export PDF
+                      <span className="material-symbols-outlined text-[16px]">download</span>
+                      Export CSV ({complaints.length} Records)
                     </button>
                     <button
-                      onClick={() => handleDownloadReport("CSV")}
-                      className="border border-[#c3c6d1] text-gray-700 hover:bg-gray-100 text-xs font-bold py-2 px-4 rounded-lg transition-colors"
+                      onClick={() => handleDownloadReport("PDF")}
+                      className="border border-[#c3c6d1] text-gray-700 hover:bg-gray-100 text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-1.5"
                     >
-                      Export CSV
+                      <span className="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+                      Export Summary
                     </button>
                   </div>
                 </div>
@@ -938,56 +1099,114 @@ export default function AdminDashboard({ onLogout }) {
             </div>
           ) : activeView === "notifications" ? (
             <div className="space-y-6 max-w-2xl">
-              <div className="border-b border-gray-250 pb-4">
-                <h2 className="text-2xl font-bold text-[#001e40]">Admin Notifications</h2>
-                <p className="text-xs text-gray-500 font-semibold mt-1">
-                  System logs, SLA thresholds, and escalations notifications.
-                </p>
+              <div className="border-b border-gray-250 pb-4 flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#001e40]">Admin Notifications</h2>
+                  <p className="text-xs text-gray-500 font-semibold mt-1">
+                    System logs, SLA thresholds, and escalations notifications.
+                  </p>
+                </div>
+                {adminNotifications.length > 0 && (
+                  <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">
+                    {adminNotifications.length} Alerts
+                  </span>
+                )}
               </div>
 
               <div className="space-y-4">
-                <div className="bg-white border-l-4 border-l-red-600 border border-[#c3c6d1] p-4 rounded-xl shadow-sm">
-                  <span className="text-[10px] font-bold text-red-600 block uppercase">SLA Warning</span>
-                  <p className="text-xs font-semibold text-gray-700 mt-1">
-                    Salem bypass pothole ticket #HW-2023-8901 is 24 hours overdue. Escalated to Grade I Ramesh Srinivasan.
-                  </p>
-                </div>
-                <div className="bg-white border-l-4 border-l-blue-600 border border-[#c3c6d1] p-4 rounded-xl shadow-sm">
-                  <span className="text-[10px] font-bold text-blue-600 block uppercase">Officer Status Change</span>
-                  <p className="text-xs font-semibold text-gray-700 mt-1">
-                    Officer Sathish Raja changed status to "On Leave". Active workloads shifted to standby queue.
-                  </p>
-                </div>
+                {adminNotifications.length > 0 ? (
+                  adminNotifications.map((n) => (
+                    <div 
+                      key={n.notification_id} 
+                      className={`bg-white border-l-4 ${!n.is_read ? "border-l-primary" : "border-l-gray-300"} border border-[#c3c6d1] p-4 rounded-xl shadow-sm`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] font-bold text-primary block uppercase">{n.title || "System Alert"}</span>
+                        <span className="text-[10px] text-gray-400">{new Date(n.created_at).toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs font-semibold text-gray-700 mt-1">
+                        {n.message}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-gray-500 bg-white border border-[#c3c6d1] rounded-xl text-xs font-semibold">
+                    No new system notifications or escalation alerts at this time.
+                  </div>
+                )}
               </div>
+            </div>
+          ) : activeView === "vision-inspector" ? (
+            <div className="space-y-6">
+              <CivicVisionInspector
+                onBackToDashboard={() => setActiveView("dashboard")}
+              />
             </div>
           ) : activeView === "profile" ? (
             <div className="max-w-2xl bg-white border border-[#c3c6d1] rounded-xl p-6 shadow-sm space-y-6">
               <div className="flex items-center gap-4 border-b border-gray-150 pb-4">
                 <div className="w-16 h-16 rounded-full border border-gray-300 overflow-hidden shrink-0">
                   <img
-                    alt="Arun Kumar"
+                    alt={adminProfile?.full_name || "Admin"}
                     className="w-full h-full object-cover"
                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgYx9dfl7ZrPL9sCEm_GpLh4VSJ1Oimqw1-i16Gp_V-bVLYV8rimbfeBS0k-jwITG7Q9SSXpEAHNXIJHowAR6nofBxzGuR1v0u5wpi7MfQlJ-yiyPne4FsYvJQK5TrN2TizAqdPWHj4jrb7CD90Ot7WWHkKB5Gsso7kP9gu3hTp_UAB_VmDGQ0WsOkJ54Kmh_7IPpeGgN1oZIdDZriCe2TS1138qR1f5QGcvlVhJfjsut2IivkxhL99Q"
                   />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-850">Arun Kumar</h2>
+                  <h2 className="text-lg font-bold text-gray-850">{adminProfile?.full_name || "Department Admin"}</h2>
                   <p className="text-xs text-gray-505 font-bold uppercase tracking-wider mt-0.5">
-                    Highways Department Admin
+                    {adminProfile?.department?.department_name || "Highways"} Department Admin
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-500">
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-bold uppercase">Employee ID</span>
-                  <span className="text-gray-800 font-bold">SAL-HW-ADMIN01</span>
+              {profileSuccessMsg && (
+                <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-semibold">
+                  {profileSuccessMsg}
                 </div>
-                <div>
-                  <span className="block text-[10px] text-gray-400 font-bold uppercase">Office Location</span>
-                  <span className="text-gray-855">Collectorate Block, Salem</span>
+              )}
+
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-500">
+                  <div>
+                    <label className="block text-[10px] text-gray-400 font-bold uppercase mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={profileForm.fullName}
+                      onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#c3c6d1] rounded-lg bg-gray-50 text-xs font-semibold text-gray-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-400 font-bold uppercase mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#c3c6d1] rounded-lg bg-gray-50 text-xs font-semibold text-gray-800"
+                    />
+                  </div>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-2 gap-4 text-xs font-semibold text-gray-500 pt-2">
+                  <div>
+                    <span className="block text-[10px] text-gray-400 font-bold uppercase">Email Account</span>
+                    <span className="text-gray-800 font-bold">{adminProfile?.email || "admin@gov.in"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-gray-400 font-bold uppercase">Assigned Department</span>
+                    <span className="text-gray-855 font-bold">{adminProfile?.department?.department_name || "Roads and Highways"}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={profileSaving}
+                  className="mt-4 px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  {profileSaving ? "Saving..." : "Save Profile Details"}
+                </button>
+              </form>
             </div>
           ) : (
             <div className="max-w-xl bg-white border border-[#c3c6d1] rounded-xl p-6 shadow-sm space-y-6">
@@ -1088,7 +1307,7 @@ export default function AdminDashboard({ onLogout }) {
                     <input 
                       disabled
                       type="text" 
-                      value="Highways" 
+                      value={adminProfile?.department?.department_name || "Roads and Highways"} 
                       className="w-full px-3 py-2 border border-[#c3c6d1] rounded-lg bg-gray-150 text-gray-400 text-sm cursor-not-allowed"
                     />
                     <span className="material-symbols-outlined absolute right-3 text-gray-400 text-[18px]">lock</span>
@@ -1102,11 +1321,12 @@ export default function AdminDashboard({ onLogout }) {
                     onChange={(e) => setNewOfficer({ ...newOfficer, district: e.target.value })}
                     className="w-full px-3 py-2 border border-[#c3c6d1] rounded-lg bg-gray-50 text-sm focus:outline-none cursor-pointer"
                   >
-                    <option value="" disabled>Select District</option>
-                    <option value="23">Salem</option>
-                    <option value="8">Erode</option>
-                    <option value="4">Coimbatore</option>
-                    <option value="3">Chennai</option>
+                    <option value="" disabled>Select District ({districtsList.length} Available)</option>
+                    {districtsList.map((d) => (
+                      <option key={d.district_id} value={d.district_id}>
+                        {d.district_name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1177,8 +1397,8 @@ export default function AdminDashboard({ onLogout }) {
       {/* DETAIL MODAL PANEL */}
       {selectedComplaint && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in text-xs font-semibold">
-            <div className="p-5 border-b border-gray-150 bg-gray-50 flex justify-between items-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in text-xs font-semibold">
+            <div className="p-5 border-b border-gray-150 bg-gray-50 flex justify-between items-center sticky top-0 z-10">
               <span className="font-bold text-primary text-sm">{selectedComplaint.id} Details</span>
               <button 
                 onClick={() => setSelectedComplaint(null)} 
@@ -1218,10 +1438,21 @@ export default function AdminDashboard({ onLogout }) {
                 <span className="block text-[10px] text-gray-400 font-bold uppercase">Complaint Description</span>
                 <p className="mt-1 text-gray-850 font-semibold leading-relaxed whitespace-pre-line">{selectedComplaint.description}</p>
               </div>
+
+              {/* Photographic Evidence & AI Vision Analysis */}
+              {((selectedComplaint.images && selectedComplaint.images.length > 0) || (selectedComplaint.raw?.images && selectedComplaint.raw.images.length > 0)) && (
+                <div className="pt-2">
+                  <AIVisionResults
+                    imageSrc={(selectedComplaint.images || selectedComplaint.raw?.images)[0].image_url}
+                    analysisData={selectedComplaint.ai_analysis || selectedComplaint.raw?.ai_analysis}
+                    title="AI Vision Inspection & Spatial Localization"
+                  />
+                </div>
+              )}
             </div>
             <div className="p-4 border-t border-gray-150 bg-gray-50 flex justify-end">
               <button 
-                onClick={() => setSelectedComplaint(null)}
+                onClick={() => setSelectedComplaint(null)} 
                 className="bg-primary text-white px-4 py-2 rounded-lg font-bold"
               >
                 Done

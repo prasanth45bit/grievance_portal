@@ -9,6 +9,13 @@ const router = express.Router();
 router.use(requireAuth);
 router.use(requireRole("OFFICER"));
 
+// Profile and Settings
+router.get("/me", officerController.getProfile);
+router.put("/me", officerController.updateProfile);
+router.put("/change-password", officerController.changePassword);
+router.patch("/me/duty-status", officerController.toggleDutyStatus);
+router.patch("/duty-status", officerController.toggleDutyStatus);
+
 // Dashboard Statistics
 router.get("/dashboard", officerController.getDashboardStats);
 

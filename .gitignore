@@ -1,0 +1,69 @@
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Environment & Secrets
+.env
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Node / JavaScript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Large Model weights, checkpoints, optimizers (>100MB exceeds GitHub limits)
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.weights
+*.h5
+*.tflite
+optimizer.pt
+scheduler.pt
+checkpoint-*/
+runs/
+.cache/
+
+# Whitelist necessary configuration / metadata files
+!**/models/README.md
+!**/dataset/README.md
+!**/dataset/data.yaml
+!**/grievance-bert-model/config.json
+!**/grievance-bert-model/label_mapping.json
+!**/grievance-bert-model/special_tokens_map.json
+!**/grievance-bert-model/tokenizer.json
+!**/grievance-bert-model/tokenizer_config.json
+!**/grievance-bert-model/vocab.txt
+
+# Logs
+logs/
+*.log

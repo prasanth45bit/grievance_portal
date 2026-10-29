@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { Op } = require("sequelize");
-const { sequelize, Officer, Complaint, District, Department, Feedback } = require("../models");
+const { sequelize, Officer, Complaint, District, Department, Feedback, DepartmentAdmin } = require("../models");
 const { sendSuccess, sendError } = require("../utils/response");
 const logger = require("../utils/logger");
 
@@ -90,7 +90,14 @@ const getDepartmentComplaints = async (req, res, next) => {
 
     const whereClause = { department_id: deptId };
 
-    if (district) whereClause.district_id = district;
+    if (district) {
+      if (/^\d+$/.test(district)) {
+        whereClause.district_id = district;
+      } else {
+        const distRec = await District.findOne({ where: { district_name: district } });
+        whereClause.district_id = distRec ? distRec.district_id : 0;
+      }
+    }
     if (officer) whereClause.officer_id = officer;
     if (status) whereClause.status = status;
     if (priority) whereClause.priority = priority;
@@ -352,6 +359,80 @@ const getTrendsReport = async (req, res, next) => {
   }
 };
 
+// ----------------------------------------------------
+// ADMIN PROFILE & ACCOUNT SETTINGS
+// ----------------------------------------------------
+const getProfile = async (req, res, next) => {
+  try {
+    const admin = await DepartmentAdmin.findByPk(req.user.userId, {
+      attributes: { exclude: ["password_hash"] },
+      include: [
+        { model: Department, as: "department", attributes: ["department_id", "department_name", "description"] },
+      ],
+    });
+
+    if (!admin) {
+      return sendError(res, "Admin profile not found", "NOT_FOUND", 404);
+    }
+
+    return sendSuccess(res, "Admin profile retrieved successfully", admin);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProfile = async (req, res, next) => {
+  try {
+    const { fullName, phone, profileImage } = req.body;
+    const admin = await DepartmentAdmin.findByPk(req.user.userId);
+
+    if (!admin) {
+      return sendError(res, "Admin profile not found", "NOT_FOUND", 404);
+    }
+
+    if (fullName) admin.full_name = fullName;
+    if (phone) admin.phone = phone;
+    if (profileImage !== undefined) admin.profile_image = profileImage;
+
+    await admin.save();
+
+    const adminJson = admin.toJSON();
+    delete adminJson.password_hash;
+
+    return sendSuccess(res, "Admin profile updated successfully", adminJson);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, oldPassword, newPassword } = req.body;
+    const pwdToCheck = oldPassword || currentPassword;
+
+    if (!pwdToCheck || !newPassword) {
+      return sendError(res, "Current password and new password are required", "BAD_REQUEST", 400);
+    }
+
+    const admin = await DepartmentAdmin.findByPk(req.user.userId);
+    if (!admin) {
+      return sendError(res, "Admin profile not found", "NOT_FOUND", 404);
+    }
+
+    const match = await bcrypt.compare(pwdToCheck, admin.password_hash);
+    if (!match) {
+      return sendError(res, "Incorrect current password", "INVALID_OLD_PASSWORD", 400);
+    }
+
+    admin.password_hash = await bcrypt.hash(newPassword, 10);
+    await admin.save();
+
+    return sendSuccess(res, "Admin password updated successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getDepartmentComplaints,
@@ -363,5 +444,8 @@ module.exports = {
   getOverviewReport,
   getDistrictReport,
   getOfficerReport,
-  getTrendsReport
+  getTrendsReport,
+  getProfile,
+  updateProfile,
+  changePassword,
 };
