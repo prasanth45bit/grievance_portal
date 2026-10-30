@@ -61,25 +61,47 @@ class DepartmentClassifierEngine:
                 f"Please ensure grievance-bert-model exists or configure MODEL_PATH."
             )
 
-        # 1. Load Tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-
-        # 2. Load Model
-        self.model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
-        self.model.to(self.device)
-        self.model.eval()
-
-        # 3. Load Label Mappings
+        # 1. Load Label Mappings
         label_file = os.path.join(self.model_path, "label_mapping.json")
         if os.path.exists(label_file):
             with open(label_file, "r", encoding="utf-8") as f:
                 mapping = json.load(f)
                 self.label2id = mapping.get("label2id", {})
                 self.id2label = {int(k): v for k, v in mapping.get("id2label", {}).items()}
+
+        # 2. Load Tokenizer
+        if os.path.exists(os.path.join(self.model_path, "vocab.txt")) or os.path.exists(os.path.join(self.model_path, "tokenizer.json")):
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         else:
-            # Fallback to model config
+            self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+
+        # 3. Load Model (fine-tuned weights if present, or base BERT with 12 classes)
+        weights_exist = any(
+            os.path.exists(os.path.join(self.model_path, w))
+            for w in ["model.safetensors", "pytorch_model.bin"]
+        )
+        if weights_exist:
+            logger.info("Loading fine-tuned model weights from %s", self.model_path)
+            self.model = AutoModelForSequenceClassification.from_pretrained(self.model_path)
+        else:
+            logger.warning(
+                "Fine-tuned weights not found in %s (e.g. cloud deployment). "
+                "Initializing bert-base-uncased with %d department classification head.",
+                self.model_path, len(self.id2label) or 12
+            )
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                "bert-base-uncased",
+                num_labels=len(self.id2label) or 12,
+                id2label=self.id2label if self.id2label else None,
+                label2id=self.label2id if self.label2id else None
+            )
+
+        if not self.id2label and hasattr(self.model.config, "id2label"):
             self.id2label = {int(k): v for k, v in self.model.config.id2label.items()}
             self.label2id = {v: k for k, v in self.id2label.items()}
+
+        self.model.to(self.device)
+        self.model.eval()
 
         self.is_loaded = True
         elapsed = (time.perf_counter() - start_t) * 1000
