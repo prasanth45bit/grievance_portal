@@ -6,7 +6,6 @@ import { api } from "../../utils/api";
 export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const [role, setRole] = useState("citizen");
@@ -39,7 +38,6 @@ export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSucce
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     try {
@@ -85,8 +83,6 @@ export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSucce
     } catch (err) {
       setError(err.message || "Authentication failed. Please check your credentials.");
       console.error("Auth submit error:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -323,16 +319,16 @@ export default function Auth({ initialIsLogin = true, onBackToHome, onLoginSucce
           </div>
 
           <nav className="flex flex-wrap gap-5">
-            <a href="#" className="footer-link">
+            <a href="#rti" className="footer-link">
               RTI
             </a>
-            <a href="#" className="footer-link">
+            <a href="#privacy" className="footer-link">
               Privacy Policy
             </a>
-            <a href="#" className="footer-link">
+            <a href="#terms" className="footer-link">
               Terms & Conditions
             </a>
-            <a href="#" className="footer-link">
+            <a href="#help" className="footer-link">
               Help Desk
             </a>
           </nav>

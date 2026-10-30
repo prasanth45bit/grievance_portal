@@ -31,7 +31,7 @@ export default function OfficerDashboard({ onLogout }) {
   const [complaints, setComplaints] = useState([]);
 
   // Timeline logs
-  const [timeline, setTimeline] = useState([
+  const [timeline] = useState([
     {
       id: "log-1",
       type: "Console Loaded",
@@ -321,7 +321,10 @@ export default function OfficerDashboard({ onLogout }) {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100 opacity-30 rounded-bl-full -z-10" />
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-[#001e40]">{officerProfile?.full_name || "Nodal Officer"}</h2>
+                    <h2 className="text-2xl font-bold text-[#001e40] flex items-center gap-2">
+                      {officerProfile?.full_name || "Nodal Officer"}
+                      {loading && <span className="w-4 h-4 border-2 border-[#001e40] border-t-transparent rounded-full animate-spin inline-block" />}
+                    </h2>
                     <p className="text-sm text-gray-500 mt-1">
                       {officerProfile?.designation || "District Officer"}{" "}
                       <span className="text-gray-300 mx-1">|</span> {officerProfile?.department?.department_name || "Highways"} Department{" "}

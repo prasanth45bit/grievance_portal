@@ -496,7 +496,10 @@ export default function AdminDashboard({ onLogout }) {
               {/* Dashboard overview */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                  <h2 className="text-3xl font-bold text-[#001e40]">Overview Dashboard</h2>
+                  <h2 className="text-3xl font-bold text-[#001e40] flex items-center gap-2">
+                    Overview Dashboard
+                    {loading && <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin inline-block" />}
+                  </h2>
                   <p className="text-xs text-gray-500 mt-1 font-semibold">
                     {adminProfile?.department?.department_name || "Highways"} Department Status Report
                   </p>

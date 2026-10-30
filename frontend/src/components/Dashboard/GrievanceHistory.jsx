@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../utils/api";
 import AIVisionResults from "../common/AIVisionResults";
 
@@ -9,7 +9,7 @@ export default function GrievanceHistory({ onBackToDashboard }) {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.citizen.getMyComplaints(1, 100, searchTerm);
@@ -38,11 +38,11 @@ export default function GrievanceHistory({ onBackToDashboard }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchHistory();
-  }, [searchTerm]);
+  }, [fetchHistory]);
 
   const filteredComplaints = complaints.filter((comp) => {
     if (!statusFilter) return true;

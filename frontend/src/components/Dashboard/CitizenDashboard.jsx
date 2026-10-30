@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "./Sidebar";
 import TopNavbar from "./TopNavbar";
 import NewComplaintForm from "./NewComplaintForm";
@@ -21,7 +21,7 @@ export default function CitizenDashboard({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({ total: 0, pending: 0, resolved: 0, escalated: 0 });
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.citizen.getMyComplaints(1, 20, search);
@@ -40,11 +40,11 @@ export default function CitizenDashboard({ onLogout }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     fetchComplaints();
-  }, [activeView, search]);
+  }, [activeView, fetchComplaints]);
 
   const getStatusStyle = (status) => {
     if (status === "Resolved" || status === "RESOLVED" || status === "CLOSED") {
@@ -356,7 +356,16 @@ export default function CitizenDashboard({ onLogout }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-300">
-                      {complaintsList.length > 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="text-center py-10 text-gray-500">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                              <span className="text-xs font-semibold">Loading grievances...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : complaintsList.length > 0 ? (
                         complaintsList.map((complaint) => (
                           <tr
                             key={complaint.complaint_id}
@@ -421,19 +430,19 @@ export default function CitizenDashboard({ onLogout }) {
                   (DARPG)
                 </p>
                 <div className="flex gap-5">
-                  <a href="#" className="text-xs hover:text-primary">
+                  <a href="#rti" className="text-xs hover:text-primary">
                     RTI
                   </a>
-                  <a href="#" className="text-xs hover:text-primary">
+                  <a href="#privacy" className="text-xs hover:text-primary">
                     Privacy Policy
                   </a>
-                  <a href="#" className="text-xs hover:text-primary">
+                  <a href="#terms" className="text-xs hover:text-primary">
                     Terms & Conditions
                   </a>
-                  <a href="#" className="text-xs hover:text-primary">
+                  <a href="#help" className="text-xs hover:text-primary">
                     Help Desk
                   </a>
-                  <a href="#" className="text-xs hover:text-primary">
+                  <a href="#sitemap" className="text-xs hover:text-primary">
                     Sitemap
                   </a>
                 </div>

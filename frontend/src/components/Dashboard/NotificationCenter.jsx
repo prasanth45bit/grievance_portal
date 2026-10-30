@@ -109,7 +109,12 @@ export default function NotificationCenter({ onBackToDashboard, onNavigate }) {
 
       {/* Main List */}
       <main className="p-4 space-y-4 min-h-[500px]">
-        {filteredNotifs.length > 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-3">
+            <div className="w-8 h-8 border-3 border-[#001e40] border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-semibold">Loading notifications...</p>
+          </div>
+        ) : filteredNotifs.length > 0 ? (
           filteredNotifs.map((notif) => {
             // Special treatment if documents uploaded for notif-1
             if (notif.id === "notif-1" && isDocumentUploaded) {

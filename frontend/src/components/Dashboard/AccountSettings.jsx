@@ -311,9 +311,10 @@ export default function AccountSettings({ onBackToDashboard }) {
 
               <button
                 type="submit"
-                className="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-200 transition-colors text-xs"
+                disabled={updatingPwd}
+                className="bg-gray-100 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-200 transition-colors text-xs disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Update Password
+                {updatingPwd ? "Updating..." : "Update Password"}
               </button>
             </form>
 

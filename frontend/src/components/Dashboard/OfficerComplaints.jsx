@@ -598,7 +598,16 @@ export default function OfficerComplaints({ searchVal, officerProfile }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 text-sm text-gray-800">
-              {filteredTickets.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="p-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-8 h-8 border-3 border-[#001e40] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm font-medium">Loading assigned grievances...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredTickets.length > 0 ? (
                 filteredTickets.map((ticket) => (
                   <tr
                     key={ticket.id}

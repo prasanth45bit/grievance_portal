@@ -158,7 +158,14 @@ export default function OfficerNotifications({ onNavigateToComplaint, officerPro
 
       {/* Notifications List */}
       <div className="space-y-4">
-        {filteredNotifs.length > 0 ? (
+        {loading ? (
+          <div className="bg-white rounded-xl p-12 text-center text-gray-500 border border-[#c3c6d1]">
+            <div className="flex flex-col items-center justify-center gap-2">
+              <div className="w-8 h-8 border-3 border-[#001e40] border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm font-medium">Loading notifications...</span>
+            </div>
+          </div>
+        ) : filteredNotifs.length > 0 ? (
           filteredNotifs.map((n) => (
             <div
               key={n.id}

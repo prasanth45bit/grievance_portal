@@ -579,10 +579,11 @@ export default function NewComplaintForm({
               </button>
               <button
                 type="button"
+                disabled={loading}
                 onClick={handleSubmitComplaint}
-                className="px-6 md:px-10 py-3 bg-[#001e40] text-white font-bold rounded-lg shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center gap-2"
+                className="px-6 md:px-10 py-3 bg-[#001e40] text-white font-bold rounded-lg shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Submit and Route
+                {loading ? "Routing Grievance..." : "Submit and Route"}
                 <span className="material-symbols-outlined">arrow_forward</span>
               </button>
             </div>
